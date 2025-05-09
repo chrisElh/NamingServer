@@ -64,6 +64,4 @@ public class Node {
         System.out.println("   Name: " + name);
         System.out.println("   IP Address: " + ipAddress);
         System.out.println("   Previous ID: " + previousID);
-        System.out.println("   Next ID: " + nextID);
-    }
-}
+        System.out.println("   Next
