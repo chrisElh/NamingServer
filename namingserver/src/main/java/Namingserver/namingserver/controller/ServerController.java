@@ -1,0 +1,201 @@
+package Namingserver.namingserver.controller;
+
+import NodePackage.Node;
+import Functions.HashingFunction;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.web.bind.annotation.*;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+
+@RestController
+public class NodeController {
+
+    // Max and min values used for boundary checks (currently unused)
+    private static final int MAX = Integer.MAX_VALUE;
+    private static final int MIN = -Integer.MAX_VALUE;
+
+    // Maps hashed node IDs to IP addresses
+    private TreeMap<Integer, String> nodeMap = new TreeMap<>();
+
+    // Maps IP addresses to node names (to reconstruct full Node objects)
+    private Map<String, String> ipToName = new HashMap<>();
+
+    // Maps file names to node hashes (ownership)
+    private Map<String, Integer> fileToNodeMap = new HashMap<>();
+
+    // Stores the actual file names per node
+    private Map<Integer, List<String>> localFiles = new HashMap<>();
+
+    // Stores replicated files per node
+    private Map<Integer, List<String>> replicas = new HashMap<>();
+
+    // Writes the current state of the node map to a file on disk
+    private void saveNodeMapToDisk() {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.writeValue(new File("nodeMap.json"), nodeMap);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Returns the previous node (circular)
+    @PostMapping("/getPrevious")
+    public Node getPrevious(@RequestBody Node node) {
+        int hash = HashingFunction.hashNodeName(node.getName());
+        Integer prevHash = nodeMap.lowerKey(hash);
+
+        if (prevHash == null) {
+            prevHash = nodeMap.lastKey();
+        }
+
+        String prevIp = nodeMap.get(prevHash);
+        String name = getNodeNameFromIp(prevIp);
+
+        return new Node(prevIp, name);
+    }
+
+    // Returns the next node (circular)
+    @PostMapping("/getNext")
+    public Node getNext(@RequestBody Node node) {
+        int hash = HashingFunction.hashNodeName(node.getName());
+        Integer nextHash = nodeMap.higherKey(hash);
+
+        if (nextHash == null) {
+            nextHash = nodeMap.firstKey();
+        }
+
+        String nextIp = nodeMap.get(nextHash);
+        String name = getNodeNameFromIp(nextIp);
+
+        return new Node(nextIp, name);
+    }
+
+    // Helper method to retrieve a node name based on its IP
+    private String getNodeNameFromIp(String ip) {
+        return ipToName.getOrDefault(ip, "unknown");
+    }
+
+    // Adds a node to the node map and updates neighbors
+    @PostMapping("/addNode")
+    public String addNode(@RequestBody Node node) {
+        int hash = HashingFunction.hashNodeName(node.getName());
+
+        if (nodeMap.containsKey(hash)) {
+            return "Node with name already exists (hash collision): " + hash;
+        }
+
+        nodeMap.put(hash, node.getIpAddress());
+        saveNodeMapToDisk();
+
+        return "Node added: " + node.getName() + " (hash: " + hash + ")";
+    }
+
+
+
+    // Removes a node and its associated data
+    @PostMapping("/removeNode")
+    public String removeNode(@RequestBody Node node) {
+        int hash = HashingFunction.hashNodeName(node.getName());
+
+        if (!nodeMap.containsKey(hash)) {
+            return "Node not found for removal: " + node.getName();
+        }
+
+        nodeMap.remove(hash);
+        localFiles.remove(hash);
+        replicas.remove(hash);
+        fileToNodeMap.values().removeIf(value -> value == hash);
+        saveNodeMapToDisk();
+
+        return "Node removed: " + node.getName();
+    }
+
+    // Registers a file to a node and sets a replica based on the file hash
+    @PostMapping("/registerFile")
+    public String registerFile(@RequestParam String filename, @RequestParam String nodeName) {
+        int nodeHash = HashingFunction.hashNodeName(nodeName);
+
+        if (!nodeMap.containsKey(nodeHash)) {
+            return "Node not registered: " + nodeName;
+        }
+
+        fileToNodeMap.put(filename, nodeHash);
+        localFiles.computeIfAbsent(nodeHash, k -> new ArrayList<>()).add(filename);
+
+        int fileHash = HashingFunction.hashNodeName(filename);
+        Integer replicaNode = nodeMap.floorKey(fileHash);
+        if (replicaNode == null) replicaNode = nodeMap.lastKey();
+
+        if (!replicaNode.equals(nodeHash)) {
+            replicas.computeIfAbsent(replicaNode, k -> new ArrayList<>()).add(filename);
+        }
+
+        return "File '" + filename + "' registered to node '" + nodeName + "' (hash: " + nodeHash + "), replica at node hash: " + replicaNode;
+    }
+
+    // Returns the IP address of the node that owns the given file
+    @GetMapping("/getFileLocation")
+    public String getFileLocation(@RequestParam String filename) {
+        Integer nodeHash = fileToNodeMap.get(filename);
+        if (nodeHash == null) return "File '" + filename + "' not registered.";
+
+        String ip = nodeMap.get(nodeHash);
+        if (ip == null) return "Node with hash " + nodeHash + " not found.";
+
+        return "File location for '" + filename + "' → Node hash: " + nodeHash + " → IP: " + ip;
+    }
+
+    // Uses hash fallback to find the best-fit node for the file (based on consistent hashing)
+    @GetMapping("/getFileLocationHashed")
+    public String getFileLocationHashed(@RequestParam String filename) {
+        int fileHash = HashingFunction.hashNodeName(filename);
+        Integer nodeHash = nodeMap.floorKey(fileHash);
+        if (nodeHash == null) nodeHash = nodeMap.lastKey();
+
+        String ip = nodeMap.get(nodeHash);
+        return "File hash = " + fileHash + ", routed to node hash: " + nodeHash + " → IP: " + ip;
+    }
+
+    // Returns the full node map
+    @GetMapping("/getAllNodes")
+    public Map<Integer, String> getAllNodes() {
+        return nodeMap;
+    }
+
+    // Returns local files owned by a specific node
+    @GetMapping("/getLocalFiles")
+    public List<String> getLocalFiles(@RequestParam String nodeName) {
+        int hash = HashingFunction.hashNodeName(nodeName);
+        return localFiles.getOrDefault(hash, Collections.emptyList());
+    }
+
+    // Returns replicated files for a specific node
+    @GetMapping("/getReplicas")
+    public List<String> getReplicas(@RequestParam String nodeName) {
+        int hash = HashingFunction.hashNodeName(nodeName);
+        return replicas.getOrDefault(hash, Collections.emptyList());
+    }
+
+    // Returns all nodes along with their local and replicated files
+    @GetMapping("/getNodesWithFiles")
+    public Map<String, Object> getNodesWithFiles() {
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        for (Map.Entry<Integer, String> entry : nodeMap.entrySet()) {
+            Integer nodeHash = entry.getKey();
+            String ip = entry.getValue();
+
+            Map<String, Object> nodeInfo = new LinkedHashMap<>();
+            nodeInfo.put("ip", ip);
+            nodeInfo.put("localFiles", localFiles.getOrDefault(nodeHash, Collections.emptyList()));
+            nodeInfo.put("replicas", replicas.getOrDefault(nodeHash, Collections.emptyList()));
+
+            result.put("NodeHash " + nodeHash, nodeInfo);
+        }
+
+        return result;
+    }
+}
