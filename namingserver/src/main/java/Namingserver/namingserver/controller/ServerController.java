@@ -10,14 +10,14 @@ import java.io.IOException;
 import java.util.*;
 
 @RestController
-public class NodeController {
+public class ServerController {
 
     // Max and min values used for boundary checks (currently unused)
     private static final int MAX = Integer.MAX_VALUE;
     private static final int MIN = -Integer.MAX_VALUE;
 
     // Maps hashed node IDs to IP addresses
-    private TreeMap<Integer, String> nodeMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> nodeMap = new TreeMap<>();
 
     // Maps IP addresses to node names (to reconstruct full Node objects)
     private Map<String, String> ipToName = new HashMap<>();
@@ -41,41 +41,58 @@ public class NodeController {
         }
     }
 
-    // Returns the previous node (circular)
-    @PostMapping("/getPrevious")
-    public Node getPrevious(@RequestBody Node node) {
-        int hash = HashingFunction.hashNodeName(node.getName());
-        Integer prevHash = nodeMap.lowerKey(hash);
-
-        if (prevHash == null) {
-            prevHash = nodeMap.lastKey();
-        }
-
-        String prevIp = nodeMap.get(prevHash);
-        String name = getNodeNameFromIp(prevIp);
-
-        return new Node(prevIp, name);
-    }
+//    // Returns the previous node (circular)
+//    @PostMapping("/getPrevious")
+//    public Node getPrevious(@RequestBody Node node) {
+//        int hash = HashingFunction.hashNodeName(node.getName());
+//        Integer prevHash = nodeMap.lowerKey(hash);
+//
+//        if (prevHash == null) {
+//            prevHash = nodeMap.lastKey();
+//        }
+//
+//        String prevIp = nodeMap.get(prevHash);
+//        String name = getNodeNameFromIp(prevIp);
+//        int port = node.getPort();
+//
+//        return new Node(prevIp, name, port);
+//    }
 
     // Returns the next node (circular)
-    @PostMapping("/getNext")
-    public Node getNext(@RequestBody Node node) {
-        int hash = HashingFunction.hashNodeName(node.getName());
-        Integer nextHash = nodeMap.higherKey(hash);
-
-        if (nextHash == null) {
-            nextHash = nodeMap.firstKey();
-        }
-
-        String nextIp = nodeMap.get(nextHash);
-        String name = getNodeNameFromIp(nextIp);
-
-        return new Node(nextIp, name);
-    }
+//    @PostMapping("/getNext")
+//    public Node getNext(@RequestBody Node node) {
+//        int hash = HashingFunction.hashNodeName(node.getName());
+//        Integer nextHash = nodeMap.higherKey(hash);
+//
+//        if (nextHash == null) {
+//            nextHash = nodeMap.firstKey();
+//        }
+//
+//        String nextIp = nodeMap.get(nextHash);
+//        String name = getNodeNameFromIp(nextIp);
+//
+//        return new Node(nextIp, name);
+//    }
 
     // Helper method to retrieve a node name based on its IP
-    private String getNodeNameFromIp(String ip) {
-        return ipToName.getOrDefault(ip, "unknown");
+//    private String getNodeNameFromIp(String ip) {
+//        return ipToName.getOrDefault(ip, "unknown");
+//    }
+
+    //Functie om node toe te voegen aan map vanuit multicast
+    public String addNodeFromMulticast(Node node) {
+        int hash = HashingFunction.hashNodeName(node.getName());
+        nodeMap.put(hash, node.getPort());
+        saveNodeMapToDisk();
+
+        return "Node added: " + node.getName() +
+                " (hash: " + hash +
+                ", Port: " + node.getPort() + ")";
+
+    }
+
+    public int getNodeCount() {
+        return nodeMap.size();
     }
 
     // Adds a node to the node map and updates neighbors
@@ -87,13 +104,13 @@ public class NodeController {
             return "Node with name already exists (hash collision): " + hash;
         }
 
-        nodeMap.put(hash, node.getIpAddress());
+        nodeMap.put(hash, node.getPort());
         saveNodeMapToDisk();
 
-        return "Node added: " + node.getName() + " (hash: " + hash + ")";
+        return "Node added: " + node.getName() +
+                " (hash: " + hash +
+                ", Port: " + node.getPort() + ")";
     }
-
-
 
     // Removes a node and its associated data
     @PostMapping("/removeNode")
@@ -136,16 +153,17 @@ public class NodeController {
         return "File '" + filename + "' registered to node '" + nodeName + "' (hash: " + nodeHash + "), replica at node hash: " + replicaNode;
     }
 
-    // Returns the IP address of the node that owns the given file
+    // Returns the port of the node that owns the given file
     @GetMapping("/getFileLocation")
     public String getFileLocation(@RequestParam String filename) {
         Integer nodeHash = fileToNodeMap.get(filename);
-        if (nodeHash == null) return "File '" + filename + "' not registered.";
+        if (nodeHash == null)
+            return "File '" + filename + "' not registered.";
 
-        String ip = nodeMap.get(nodeHash);
-        if (ip == null) return "Node with hash " + nodeHash + " not found.";
+        int port = nodeMap.get(nodeHash);
 
-        return "File location for '" + filename + "' → Node hash: " + nodeHash + " → IP: " + ip;
+
+        return "File location for '" + filename + "' → Node hash: " + nodeHash + " → Port: " + port;
     }
 
     // Uses hash fallback to find the best-fit node for the file (based on consistent hashing)
@@ -155,13 +173,13 @@ public class NodeController {
         Integer nodeHash = nodeMap.floorKey(fileHash);
         if (nodeHash == null) nodeHash = nodeMap.lastKey();
 
-        String ip = nodeMap.get(nodeHash);
-        return "File hash = " + fileHash + ", routed to node hash: " + nodeHash + " → IP: " + ip;
+        int port = nodeMap.get(nodeHash);
+        return "File hash = " + fileHash + ", routed to node hash: " + nodeHash + " → Port: " + port;
     }
 
-    // Returns the full node map
+    // Returns the full node map (hash → port)
     @GetMapping("/getAllNodes")
-    public Map<Integer, String> getAllNodes() {
+    public Map<Integer, Integer> getAllNodes() {
         return nodeMap;
     }
 
@@ -184,12 +202,12 @@ public class NodeController {
     public Map<String, Object> getNodesWithFiles() {
         Map<String, Object> result = new LinkedHashMap<>();
 
-        for (Map.Entry<Integer, String> entry : nodeMap.entrySet()) {
+        for (Map.Entry<Integer, Integer> entry : nodeMap.entrySet()) {
             Integer nodeHash = entry.getKey();
-            String ip = entry.getValue();
+            int port = entry.getValue();
 
             Map<String, Object> nodeInfo = new LinkedHashMap<>();
-            nodeInfo.put("ip", ip);
+            nodeInfo.put("port", port);
             nodeInfo.put("localFiles", localFiles.getOrDefault(nodeHash, Collections.emptyList()));
             nodeInfo.put("replicas", replicas.getOrDefault(nodeHash, Collections.emptyList()));
 
@@ -198,4 +216,9 @@ public class NodeController {
 
         return result;
     }
+//
+//    // Placeholder
+//    private void saveNodeMapToDisk() {
+//        // TODO: implement if needed
+//    }
 }
