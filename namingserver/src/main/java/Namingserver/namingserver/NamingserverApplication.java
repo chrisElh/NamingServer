@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class NamingserverApplication implements CommandLineRunner {
-
+// tracer
 	@Autowired
 	private ServerController controller;
 
