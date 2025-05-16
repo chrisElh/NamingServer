@@ -17,6 +17,31 @@ public class Node {
     private int totalNodes = 0;
 
 
+    //Fields needed for failure:
+    private int previousPort, nextPort;
+    public void setPreviousPort(int port) { this.previousPort = port; }
+    public void setNextPort(int port)     { this.nextPort     = port; }
+    public int getPreviousPort()          { return previousPort; }
+    public int getNextPort()              { return nextPort;     }
+
+    // fields for failure
+    // 1) the flag
+    private boolean failureMonitorStarted = false;
+
+    // 2) the getter
+    public boolean getFailureMonitorStarted() {
+        return failureMonitorStarted;
+    }
+    // (you can also name it getFailureMonitorStarted() if you prefer)
+
+    // 3) a package-private setter for NodeApp to call
+    void markFailureMonitorStarted() {
+        this.failureMonitorStarted = true;
+    }
+
+
+
+
     private List<File> localFileObjects = new ArrayList<>();
     private List<String> localFileNames = new ArrayList<>();
     private List<File> replicatedFileObjects = new ArrayList<>();

@@ -252,6 +252,56 @@ public class ServerController {
 
         return result;
     }
+
+    //Failure code
+    // 1) DTO (data transfer object) for JSON response, this class can create an object that carries the data we want to send (port numbers)
+    public static class NeighborResponse {
+        private int previous, next;             //hold the port numbers
+        public NeighborResponse() {}
+        public NeighborResponse(int previous, int next) {
+            this.previous = previous;
+            this.next     = next;
+        }
+        public int getPrevious() { return previous; }
+        public int getNext()     { return next;     }
+        public void setPrevious(int p) { this.previous = p; }
+        public void setNext(int n)     { this.next     = n; }
+    }
+
+    // 2) GET /neighbors?port={p} → returns new prev/next ports after p has failed
+    // when a node fails, the node that detects this will call: GET http://<naming-server>/neighbors?port=p
+    @GetMapping("/neighbors")
+    public NeighborResponse getNeighbors(@RequestParam int port) {
+        // find the hash key for the failed node
+        int failedHash = nodeMap.entrySet().stream()
+                //only keep the entry of the node with the matching portnumebr
+                .filter(e -> e.getValue() == port)
+                //get the key of this node
+                .map(Map.Entry::getKey)
+                //get the first and only hash wrapped in Optional<integer>
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Unknown node port: " + port));
+
+        // sort hashes to model the ring
+        List<Integer> hashes = new ArrayList<>(nodeMap.keySet());
+        Collections.sort(hashes);                       //we sort the list of keys in acsending way
+        int idx       = hashes.indexOf(failedHash);     //locating the postion of the failed node
+        int prevHash  = hashes.get((idx - 1 + hashes.size()) % hashes.size());  //computing the new predecessor and successor hashes
+        int nextHash  = hashes.get((idx + 1)               % hashes.size());
+
+        return new NeighborResponse(
+                nodeMap.get(prevHash),      //we create the object Neighborresponse and pass the port numbers of the nieghbours, Spring Boot auto-serializes this into JSON like {"previous":3001,"next":3003}.
+                nodeMap.get(nextHash)
+        );
+    }
+
+    // 3) DELETE /nodes?port={p} → evict p from the ring map
+    @DeleteMapping("/nodes")
+    public void removeNode(@RequestParam int port) {
+        nodeMap.values().removeIf(p -> p == port);
+    }
+
+
 //
 //    // Placeholder
 //    private void saveNodeMapToDisk() {
