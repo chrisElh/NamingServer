@@ -251,10 +251,6 @@ public class NodeApp {
 
 
 
-
-
-
-
 //package NodePackage;
 //
 //import NodePackage.communication.MulticastReceiver;

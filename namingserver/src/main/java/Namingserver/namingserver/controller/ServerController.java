@@ -82,9 +82,47 @@ public class ServerController {
     //Functie om node toe te voegen aan map vanuit multicast
     public String addNodeFromMulticast(Node node) {
         int hash = HashingFunction.hashNodeName(node.getName());
+
+        // Prevent duplicate nodes with the same name (hash collision)
+        if (nodeMap.containsKey(hash)) {
+            return "Node with name already exists (hash collision): " + hash;
+        }
         nodeMap.put(hash, node.getPort());
         saveNodeMapToDisk();
+        saveNodeMapToDisk(); // Optional: store map on disk for persistence
 
+        // ------------------------------
+        // Handle local file registration
+        // ------------------------------
+
+        // Check if the node has any local file names listed
+        if (node.getLocalFileNames() != null) {
+            for (String filename : node.getLocalFileNames()) {
+
+                // 1. Register the file as owned by this node
+                fileToNodeMap.put(filename, hash);
+
+                // 2. Add the file to the localFiles map under this node’s hash
+                localFiles.computeIfAbsent(hash, k -> new ArrayList<>()).add(filename);
+
+                // 3. Determine the replica node using consistent hashing
+                int fileHash = HashingFunction.hashNodeName(filename);
+                Integer replicaHash = nodeMap.floorKey(fileHash);
+                if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
+
+                // 4. If the replica is not the same as the owner, add to replicas
+                if (!replicaHash.equals(hash)) {
+                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);
+                }
+
+                // Optional: log for debugging
+                System.out.println("Registered file: " + filename +
+                        " → Owner hash: " + hash +
+                        ", Replica hash: " + replicaHash);
+            }
+        }
+
+        // Final response confirming the node was added
         return "Node added: " + node.getName() +
                 " (hash: " + hash +
                 ", Port: " + node.getPort() + ")";
@@ -300,6 +338,7 @@ public class ServerController {
     public void removeNode(@RequestParam int port) {
         nodeMap.values().removeIf(p -> p == port);
     }
+
 
 
     // SHUTDOWN
