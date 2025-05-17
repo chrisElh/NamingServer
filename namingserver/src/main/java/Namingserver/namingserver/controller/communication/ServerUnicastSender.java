@@ -25,6 +25,24 @@ public class ServerUnicastSender {
         }
     }
 
+    public static void sendReplicaInstruction(String targetPort, String filename, String destinationPort) {
+        try {
+            String message = "REPLICA:" + filename + ":" + destinationPort;
+            InetAddress address = InetAddress.getByName("localhost");
+            int port = Integer.parseInt(targetPort);
+
+            byte[] buf = message.getBytes();
+            DatagramPacket packet = new DatagramPacket(buf, buf.length, address, port);
+
+            DatagramSocket socket = new DatagramSocket();
+            socket.send(packet);
+            socket.close();
+
+            System.out.println("Sent replica instruction to port " + port + " → " + message);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
 
 }

@@ -1,5 +1,6 @@
 package Namingserver.namingserver.controller;
 
+import Namingserver.namingserver.controller.communication.ServerUnicastSender;
 import NodePackage.Node;
 import Functions.HashingFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -110,6 +111,18 @@ public class ServerController {
                 Integer replicaHash = nodeMap.floorKey(fileHash);
                 if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
 
+
+                if (!replicaHash.equals(hash)) {//hier wordt geconntroleerd als de nieuweiegnaar die de NS berekent niet de originele node is
+                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);//Voegt de bestandsnaam toe aan de replicas-mapping van die replica-node.
+
+                    //  Stuur replica instructie via UDP
+                    int originalNodePort = node.getPort();
+                    int replicaNodePort = nodeMap.get(replicaHash);
+
+                    ServerUnicastSender.sendReplicaInstruction(String.valueOf(originalNodePort), filename, String.valueOf(replicaNodePort));
+                }
+
+
                 // 4. If the replica is not the same as the owner, add to replicas
                 if (!replicaHash.equals(hash)) {
                     replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);
@@ -165,6 +178,18 @@ public class ServerController {
                 int fileHash = HashingFunction.hashNodeName(filename);
                 Integer replicaHash = nodeMap.floorKey(fileHash);
                 if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
+
+
+                if (!replicaHash.equals(hash)) {//hier wordt geconntroleerd als de nieuweiegnaar die de NS berekent niet de originele node is
+                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);//Voegt de bestandsnaam toe aan de replicas-mapping van die replica-node.
+
+                    //  Stuur replica instructie via UDP
+                    int originalNodePort = node.getPort();
+                    int replicaNodePort = nodeMap.get(replicaHash);
+
+                    ServerUnicastSender.sendReplicaInstruction(String.valueOf(originalNodePort), filename, String.valueOf(replicaNodePort));
+                }
+
 
                 // 4. If the replica is not the same as the owner, add to replicas
                 if (!replicaHash.equals(hash)) {

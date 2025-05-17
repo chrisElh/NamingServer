@@ -92,6 +92,7 @@ public class Node {
         // Create a File object representing the directory
         File dir = new File(directoryPath);
 
+        //System.out.println(new File(directoryPath).getAbsolutePath());
         // Check if the path exists and is a valid directory
         if (dir.exists() && dir.isDirectory()) {
 

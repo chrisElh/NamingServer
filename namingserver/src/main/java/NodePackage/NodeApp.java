@@ -15,6 +15,10 @@ public class NodeApp {
     public Node createAndAnnounceNewNode(String name, int unicastPort) {
         Node node = new Node(name, unicastPort);
 
+
+        // Laad lokale bestanden
+        node.loadLocalFilesFromDirectory("./data/" + name);
+
         try {
             // Start the UDP unicast receiver so this node can receive messages (e.g., nodeCount, neighbors)
             startUnicastReceiver(node);
