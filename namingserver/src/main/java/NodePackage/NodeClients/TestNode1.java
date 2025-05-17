@@ -15,7 +15,7 @@ public class TestNode1 {
             return;
         }
         File dir = new File(resource.getFile());
-        Node node = app.createAndAnnounceNewNode("TestNode1", 3030, dir.getAbsolutePath() );
+        Node node = app.createAndAnnounceNewNode("Christian", 3030, dir.getAbsolutePath() );
         System.out.println(node.getLocalFileNames());
 
 

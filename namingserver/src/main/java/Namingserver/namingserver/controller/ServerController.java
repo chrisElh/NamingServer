@@ -100,12 +100,8 @@ public class ServerController {
         // Check if the node has any local file names listed
 
         if (localFileNames != null) {
-            System.out.println("if binnen gekomen");
-            System.out.println(localFileNames);
-            System.out.println("Aantal bestanden: " + localFileNames.size());
 
             for (String filename : localFileNames) {
-                System.out.println("for binnen gekomen");
 
                 // 1. Register the file as owned by this node
                 fileToNodeMap.put(filename, hash);
@@ -117,6 +113,7 @@ public class ServerController {
                 int fileHash = HashingFunction.hashNodeName(filename);
                 Integer replicaHash = nodeMap.floorKey(fileHash);
                 if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
+                System.out.println("Filehash:" + fileHash);
 
 
 

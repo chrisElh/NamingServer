@@ -41,69 +41,157 @@ public class NodeApp {
         return node;
     }
 
+//    // Start een thread die luistert op de eigen poort van de node en berichten verwerkt
+//    private void startUnicastReceiver(Node node) {
+//        UnicastReceiver.MessageHandler handler = message -> {
+//            System.out.println("Node " + node.getName() + " received message: " + message);
+//
+//            String[] parts = message.trim().split(",");
+//            System.out.println(">> Aangekomen bij addNodeFromMulticast");
+//
+//
+//            try {
+//                if (parts.length == 1) {
+//                    // Slide 4
+//                    int total = Integer.parseInt(parts[0]);
+//
+//                    if (total < 1) {
+//                        int hash = HashingFunction.hashNodeName(node.getName());
+//                        node.setPreviousID(hash);
+//                        node.setNextID(hash);
+//                        System.out.println("Solo node → previousID and nextID set to own hash: " + hash);
+//                    }
+//
+//                    node.setTotalNodes(total);
+//                    System.out.println("Updated totalNodes to: " + total);
+//
+//                } else if (parts.length == 2) {
+//                    // Slide 5
+//                    int sender = Integer.parseInt(parts[0]);
+//                    int other = Integer.parseInt(parts[1]);
+//                    neighborCandidates.add(new int[]{sender, other});
+//
+//                    System.out.println("Received neighbor candidate: " + sender + ", " + other);
+//
+//                    // Als we genoeg reacties hebben (optioneel: wachten op totalNodes - 1)
+//                    if (neighborCandidates.size() >= node.getTotalNodes() - 1) {
+//                        decideNeighbors(node);
+//                    }
+//
+//
+//                }
+//
+//
+//                else if (parts[0].startsWith("REPLICA")) {
+//                    String[] replicaParts = message.split(":");
+//                    if (replicaParts.length == 3) {
+//                        String filename = replicaParts[1];
+//                        int targetPort = Integer.parseInt(replicaParts[2]);
+//
+//                        System.out.println("Instruction received to send the file : " + filename + " → port " + targetPort);
+//
+//                        // Pad opbouwen naar bestand
+//                        String filePath = "C:\\3de_jaar\\3_Distributed_Systeem\\Lab5\\namingserver\\src\\main\\resources" + filename;
+//
+//                        // Bestand verzenden via TCP
+//                        FileSender.sendFile(filePath, targetPort);
+//                    } else {
+//                        System.err.println("Invalid message format: " + message);
+//                    }
+//                }
+//            } catch (NumberFormatException e) {
+//                System.err.println("Invalid number format in message: " + message);
+//            }
+//        };
+//
+//        Thread receiverThread = new Thread(new UnicastReceiver(node.getPort(), handler));
+//        receiverThread.start();
+//    }
+
+
     // Start een thread die luistert op de eigen poort van de node en berichten verwerkt
     private void startUnicastReceiver(Node node) {
+        // Definieer de message handler die inkomende berichten verwerkt
         UnicastReceiver.MessageHandler handler = message -> {
             System.out.println("Node " + node.getName() + " received message: " + message);
-
-            String[] parts = message.trim().split(",");
             System.out.println(">> Aangekomen bij addNodeFromMulticast");
 
-
             try {
-                if (parts.length == 1) {
-                    // Slide 4
-                    int total = Integer.parseInt(parts[0]);
-
-                    if (total < 1) {
-                        int hash = HashingFunction.hashNodeName(node.getName());
-                        node.setPreviousID(hash);
-                        node.setNextID(hash);
-                        System.out.println("Solo node → previousID and nextID set to own hash: " + hash);
-                    }
-
-                    node.setTotalNodes(total);
-                    System.out.println("Updated totalNodes to: " + total);
-
-                } else if (parts.length == 2) {
-                    // Slide 5
-                    int sender = Integer.parseInt(parts[0]);
-                    int other = Integer.parseInt(parts[1]);
-                    neighborCandidates.add(new int[]{sender, other});
-
-                    System.out.println("Received neighbor candidate: " + sender + ", " + other);
-
-                    // Als we genoeg reacties hebben (optioneel: wachten op totalNodes - 1)
-                    if (neighborCandidates.size() >= node.getTotalNodes() - 1) {
-                        decideNeighbors(node);
-                    }
-
-
-                }
-
-
-                else if (parts[0].startsWith("REPLICA")) {
+                // ------------------------------
+                // 1. Check of het om een REPLICA-instructie gaat
+                // Formaat verwacht: "REPLICA:bestandsnaam:poort"
+                // ------------------------------
+                if (message.startsWith("REPLICA:")) {
                     String[] replicaParts = message.split(":");
                     if (replicaParts.length == 3) {
                         String filename = replicaParts[1];
                         int targetPort = Integer.parseInt(replicaParts[2]);
 
-                        System.out.println("Instroction received to send the file : " + filename + " → port " + targetPort);
+                        System.out.println("Instruction received to send the file : " + filename + " → port " + targetPort);
 
-                        // Pad opbouwen naar bestand
-                        String filePath = "C:\\3de_jaar\\3_Distributed_Systeem\\Lab5\\namingserver\\src\\main\\resources" + filename;
+                        // Opbouw van pad naar het bestand dat verzonden moet worden
+                        String filePath = "C:\\3de_jaar\\3_Distributed_Systeem\\Lab5\\namingserver\\src\\main\\resources\\" + filename;
 
-                        // Bestand verzenden via TCP
+                        // Verstuur bestand via TCP naar opgegeven poort
                         FileSender.sendFile(filePath, targetPort);
                     } else {
-                        System.err.println("Invalid message format: " + message);
+                        System.err.println("Invalid REPLICA message format: " + message);
+                    }
+                }
+                // ------------------------------
+                // 2. Alle andere berichten worden via komma gesplitst
+                // ------------------------------
+                else {
+                    String[] parts = message.trim().split(",");
+
+                    // ------------------------------
+                    // 2.a Enkel totaal aantal nodes (bijv. "2")
+                    // → Als node alleen is: vorige en volgende = zichzelf
+                    // ------------------------------
+                    if (parts.length == 1) {
+                        int total = Integer.parseInt(parts[0]);
+
+                        if (total < 1) {
+                            int hash = HashingFunction.hashNodeName(node.getName());
+                            node.setPreviousID(hash);
+                            node.setNextID(hash);
+                            System.out.println("Solo node → previousID and nextID set to own hash: " + hash);
+                        }
+
+                        node.setTotalNodes(total);
+                        System.out.println("Updated totalNodes to: " + total);
+                    }
+
+                    // ------------------------------
+                    // 2.b Bureninformatie ontvangen van andere node (bijv. "2269,3030")
+                    // ------------------------------
+                    else if (parts.length == 2) {
+                        int sender = Integer.parseInt(parts[0]);
+                        int other = Integer.parseInt(parts[1]);
+                        neighborCandidates.add(new int[]{sender, other});
+
+                        System.out.println("Received neighbor candidate: " + sender + ", " + other);
+
+                        // Als we voldoende bureninformatie verzameld hebben
+                        if (neighborCandidates.size() >= node.getTotalNodes() - 1) {
+                            decideNeighbors(node);
+                        }
+                    }
+
+                    // ------------------------------
+                    // 2.c Ongeldig formaat
+                    // ------------------------------
+                    else {
+                        System.err.println("Unknown message format: " + message);
                     }
                 }
             } catch (NumberFormatException e) {
+                // Fout bij het omzetten van string naar int
                 System.err.println("Invalid number format in message: " + message);
             }
         };
 
+        // Start de thread die de unicastberichten op de poort van deze node verwerkt
         Thread receiverThread = new Thread(new UnicastReceiver(node.getPort(), handler));
         receiverThread.start();
     }
