@@ -5,6 +5,9 @@ import NodePackage.communication.MulticastSender;
 import NodePackage.communication.UnicastReceiver;
 import NodePackage.communication.FileReceiver;
 import Functions.HashingFunction;
+
+import java.io.File;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,14 +20,22 @@ public class NodeApp {
 
 
         // Laad lokale bestanden
-        node.loadLocalFilesFromDirectory("./data/" + name);
+       // node.loadLocalFilesFromDirectory("./data/" + name);
+        URL resource = NodeApp.class.getClassLoader().getResource("files");
+        if (resource == null) {
+            System.err.println("Directory 'files' not found in resources!");
+            return null;
+        }
+        File dir = new File(resource.getFile());
+        node.loadLocalFilesFromDirectory(dir.getAbsolutePath());
+
 
         try {
             // Start the UDP unicast receiver so this node can receive messages (e.g., nodeCount, neighbors)
             startUnicastReceiver(node);
 
             //Laat deze node luisteren naar binnenkomende TCP-bestanden op zijn eigen poort.
-            new Thread(new FileReceiver(node.getPort(), "./data")).start();
+            new Thread(new FileReceiver(node.getPort(), dir.getAbsolutePath())).start();
 
 
             // Broadcast this node's presence using multicast

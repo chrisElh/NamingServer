@@ -4,12 +4,26 @@ import NodePackage.Node;
 import NodePackage.NodeApp;
 
 import java.io.File;
+import java.net.URL;
 
 public class TestNode1 {
     public static void main(String[] args) {
         NodeApp app = new NodeApp();
         Node node = app.createAndAnnounceNewNode("TestNode1", 6666);
-        node.loadLocalFilesFromDirectory("./data/files");
+//        System.out.println(">> Absolute path = " + new File("src/main/data/files").getAbsolutePath());
+        URL resource = TestNode1.class.getClassLoader().getResource("files");
+        if (resource == null) {
+            System.err.println("Directory not found in resources");
+            return;
+        }
+        File dir = new File(resource.getFile());
+        System.out.println(">> Is directory? " + new File(dir.getAbsolutePath()).isDirectory());
+
+        node.loadLocalFilesFromDirectory(dir.getAbsolutePath());
+
+        //node.loadLocalFilesFromDirectory("src/main/data/files");
+
+       // node.loadLocalFilesFromDirectory("./data/files");
 //        String absPath = new File("src/main/data/files").getAbsolutePath();
 //        node.loadLocalFilesFromDirectory(absPath);
 
