@@ -17,7 +17,7 @@ public class NodeApp {
 
 
         // Laad lokale bestanden
-        node.loadLocalFilesFromDirectory("./data/" + name);
+//        node.loadLocalFilesFromDirectory("./data/" + name);
 
         try {
             // Start the UDP unicast receiver so this node can receive messages (e.g., nodeCount, neighbors)
