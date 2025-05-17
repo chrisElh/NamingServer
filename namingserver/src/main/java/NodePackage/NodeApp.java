@@ -12,11 +12,11 @@ public class NodeApp {
     private final List<int[]> neighborCandidates = new ArrayList<>();
 
     // Creates a new node, starts listening on its own port, and announces itself via multicast
-    public Node createAndAnnounceNewNode(String name, int unicastPort, String dirPath) {
+    public Node createAndAnnounceNewNode(String name, int unicastPort, String dirPathLocal, String dirPathReplica) {
         Node node = new Node(name, unicastPort);
 
 
-        node.loadLocalFilesFromDirectory(dirPath);
+        node.loadLocalFilesFromDirectory(dirPathLocal);
         System.out.println("From NodeApp: " + node.getLocalFileNames());
 
 
@@ -25,7 +25,7 @@ public class NodeApp {
             startUnicastReceiver(node);
 
             //Laat deze node luisteren naar binnenkomende TCP-bestanden op zijn eigen poort.
-            new Thread(new FileReceiver(node.getPort(), "./data")).start();
+            new Thread(new FileReceiver(node.getPort(), dirPathReplica, node)).start();
 
 
             // Broadcast this node's presence using multicast
@@ -130,10 +130,11 @@ public class NodeApp {
                         System.out.println("Instruction received to send the file : " + filename + " → port " + targetPort);
 
                         // Opbouw van pad naar het bestand dat verzonden moet worden
-                        String filePath = "C:\\3de_jaar\\3_Distributed_Systeem\\Lab5\\namingserver\\src\\main\\resources\\" + filename;
+//                        String filePath = "C:\\3de_jaar\\3_Distributed_Systeem\\Lab5\\namingserver\\src\\main\\resources\\" + filename;
 
+                        File file = node.findFileByName(node.getLocalFileObjects(), filename);
                         // Verstuur bestand via TCP naar opgegeven poort
-                        FileSender.sendFile(filePath, targetPort);
+                        FileSender.sendFile(file, targetPort);
                     } else {
                         System.err.println("Invalid REPLICA message format: " + message);
                     }

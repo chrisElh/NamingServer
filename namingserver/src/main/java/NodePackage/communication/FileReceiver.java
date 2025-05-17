@@ -1,5 +1,7 @@
 package NodePackage.communication;
 
+import NodePackage.Node;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -8,10 +10,13 @@ public class FileReceiver implements Runnable {
 
     private final int port;
     private final String storageDirectory;
+    private final Node node;
 
-    public FileReceiver(int port, String storageDirectory) {
+
+    public FileReceiver(int port, String storageDirectory, Node node) {
         this.port = port;
         this.storageDirectory = storageDirectory;
+        this.node = node;
     }
 
     @Override
@@ -53,7 +58,14 @@ public class FileReceiver implements Runnable {
                 }
             }
 
-            System.out.println("file added: " + outputFile.getAbsolutePath());
+
+            //We add the file to the arrays of the object
+            node.addReplicatedFile(outputFile);
+
+//            System.out.println("file added: " + outputFile.getAbsolutePath());
+            System.out.println("File received in :" + outputFile);
+
+
 
         } catch (IOException e) {
             System.err.println("Error at the receiver file: " + e.getMessage());
