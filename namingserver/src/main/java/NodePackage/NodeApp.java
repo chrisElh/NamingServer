@@ -17,6 +17,7 @@ public class NodeApp {
 
 
         node.loadLocalFilesFromDirectory(dirPath);
+        System.out.println("From NodeApp: " + node.getLocalFileNames());
 
 
         try {
@@ -28,7 +29,7 @@ public class NodeApp {
 
 
             // Broadcast this node's presence using multicast
-            MulticastSender.sendMulticast(name, unicastPort);
+            MulticastSender.sendMulticast(name, unicastPort, node.getLocalFileNames());
 
             new Thread(new MulticastReceiver(node)).start();
 

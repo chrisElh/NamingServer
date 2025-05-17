@@ -82,7 +82,7 @@ public class ServerController {
 
     //Functie om node toe te voegen aan map vanuit multicast
 
-    public String addNodeFromMulticast(Node node) {
+    public String addNodeFromMulticast(Node node, List<String> localFileNames) {
         int hash = HashingFunction.hashNodeName(node.getName());
 
         // Prevent duplicate nodes with the same name (hash collision)
@@ -99,12 +99,12 @@ public class ServerController {
 
         // Check if the node has any local file names listed
 
-        if (node.getLocalFileNames() != null) {
+        if (localFileNames != null) {
             System.out.println("if binnen gekomen");
-            System.out.println(node.getLocalFileNames());
-            System.out.println("Aantal bestanden: " + node.getLocalFileNames().size());
+            System.out.println(localFileNames);
+            System.out.println("Aantal bestanden: " + localFileNames.size());
 
-            for (String filename : node.getLocalFileNames()) {
+            for (String filename : localFileNames) {
                 System.out.println("for binnen gekomen");
 
                 // 1. Register the file as owned by this node
