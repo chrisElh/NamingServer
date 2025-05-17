@@ -2,10 +2,14 @@ package NodePackage.communication;
 
 import Functions.HashingFunction;
 import NodePackage.Node;
+import NodePackage.NodeApp;
+
 
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+
+//import static NodePackage.NodeApp.startFailureMonitor;
 
 /**
  * Deze klasse laat een Node luisteren naar multicast-berichten.
@@ -15,11 +19,15 @@ import java.net.MulticastSocket;
 public class MulticastReceiver implements Runnable {
 
     private final Node node; // De lokale node die dit ontvangt
+    private final NodeApp  app;    // <-- add this line
+
     private static final String MULTICAST_IP = "230.0.0.0"; // Multicastgroep
     private static final int MULTICAST_PORT = 4446;         // Multicastpoort
 
-    public MulticastReceiver(Node node) {
+
+    public MulticastReceiver(Node node, NodeApp app) {
         this.node = node;
+        this.app = app;             // <-- add this line
     }
 
     @Override
@@ -54,38 +62,91 @@ public class MulticastReceiver implements Runnable {
                 int previousID = node.getPreviousID();
                 int nextID = node.getNextID();
 
+                boolean betweenNext = isBetween(currentID, newHash, nextID);
+                boolean betweenPrev = isBetween(previousID, newHash, currentID);
+
                 boolean updated = false;
+
+
+
 
                 /**
                  * Bepaal of de nieuwe node tussen deze node en zijn nextID valt
                  * → Dan moet deze node zijn nextID bijwerken naar de nieuwe node
                  */
-                if (currentID < newHash && (nextID == -1 || newHash < nextID)) {
-                    node.setNextID(newHash);
-                    sendResponse(newPort, currentID + "," + nextID); // currentID = deze node, nextID = oud nextID
-                    updated = true;
-                }
-
+//                if (currentID < newHash && (nextID == -1 || newHash < nextID)) {
+//                    node.setNextID(newHash);
+//                    sendResponse(newPort, currentID + "," + nextID); // currentID = deze node, nextID = oud nextID
+//                    updated = true;
+//                }
                 /**
                  * Bepaal of de nieuwe node tussen previousID en deze node zit
                  * → Dan moet deze node zijn previousID bijwerken naar de nieuwe node
                  */
-                if (previousID < newHash && newHash < currentID) {
+//                if (previousID < newHash && newHash < currentID) {
+//                    node.setPreviousID(newHash);
+//                    sendResponse(newPort, currentID + "," + previousID); // currentID = deze node, previousID = oud previousID
+//                    updated = true;
+//                }
+
+
+                sendResponse(newPort, currentID + "," + previousID);
+
+                if (betweenNext) {
+                    // update nextID, reply with your old next
+                    node.setNextID(newHash);
+                    updated = true;
+                }
+                if (betweenPrev) {
+                    // update previousID, reply with your old prev
                     node.setPreviousID(newHash);
-                    sendResponse(newPort, currentID + "," + previousID); // currentID = deze node, previousID = oud previousID
                     updated = true;
                 }
 
+
+//                if (updated) {
+//                    System.out.println("Node " + node.getName() + " updated neighbors due to " + newName);
+//                    // **now** fetch and set the actual ports for our updated ring links
+//                    int[] ports = NodeApp.getUpdatedNeighborsFromNamingServer(node.getPort());
+//                    node.setPreviousPort(ports[0]);
+//                    node.setNextPort(    ports[1]);
+//                    System.out.printf(
+//                            "↳ %s new neighbor ports: prevPort=%d, nextPort=%d%n",
+//                            node.getName(), ports[0], ports[1]
+//                    );
+                  // always refresh ports on *any* join
                 if (updated) {
-                    System.out.println("Node " + node.getName() + " updated neighbors due to " + newName);
+                    System.out.println("Node " + node.getName()
+                    + " updated hash‐neighbors due to " + newName);
+                }
+                // <-- unconditionally re-fetch your own neighbor ports
+                int[] ports = NodeApp.getUpdatedNeighborsFromNamingServer(node.getPort());
+                node.setPreviousPort(ports[0]);
+                node.setNextPort(    ports[1]);
+
+                System.out.printf("↳ %s refreshed neighbor ports: prevPort=%d, nextPort=%d%n",
+                node.getName(), ports[0], ports[1]);
+                if (!node.getFailureMonitorStarted()) {  // boolean flag in Node class
+                    app.startFailureMonitor(node);
                 }
             }
+
 
         } catch (Exception e) {
             System.err.println("Error in MulticastReceiver:");
             e.printStackTrace();
         }
     }
+
+    private boolean isBetween(int start, int x, int end) {
+        if (start < end) {
+            return start < x && x < end;
+        } else {
+            // wrap‐around:
+            return start < x || x < end;
+        }
+    }
+
 
     /**
      * Verzendt een unicastantwoord naar de opgegeven poort van de nieuwe node.
