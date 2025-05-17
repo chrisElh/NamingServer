@@ -11,5 +11,6 @@
     <orderEntry type="library" name="Maven: org.springframework:spring-beans:6.2.6" level="project" />
     <orderEntry type="library" name="Maven: org.springframework.boot:spring-boot:3.4.5" level="project" />
     <orderEntry type="library" name="Maven: org.springframework.boot:spring-boot-autoconfigure:3.4.5" level="project" />
+    <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-databind:2.18.3" level="project" />
   </component>
 </module>

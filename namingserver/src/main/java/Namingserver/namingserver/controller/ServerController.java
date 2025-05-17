@@ -247,6 +247,15 @@ public class ServerController {
 
         if (!replicaNode.equals(nodeHash)) {
             replicas.computeIfAbsent(replicaNode, k -> new ArrayList<>()).add(filename);
+            // send unicast instruction to the original node
+            int originalNodePort = nodeMap.get(nodeHash); // the sender
+            int replicaNodePort = nodeMap.get(replicaNode); // the receiver
+
+            ServerUnicastSender.sendReplicaInstruction(
+                    String.valueOf(originalNodePort), // who should send the file
+                    filename,
+                    String.valueOf(replicaNodePort)   // where the file should go
+            );
         }
 
         return "File '" + filename + "' registered to node '" + nodeName + "' (hash: " + nodeHash + "), replica at node hash: " + replicaNode;

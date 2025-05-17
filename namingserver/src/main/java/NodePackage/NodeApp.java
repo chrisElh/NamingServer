@@ -1,9 +1,6 @@
 package NodePackage;
 
-import NodePackage.communication.MulticastReceiver;
-import NodePackage.communication.MulticastSender;
-import NodePackage.communication.UnicastReceiver;
-import NodePackage.communication.FileReceiver;
+import NodePackage.communication.*;
 import Functions.HashingFunction;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +15,10 @@ public class NodeApp {
 
         // Laad lokale bestanden
         node.loadLocalFilesFromDirectory("./data/" + name);
+
+        // we start the watcher to detect when the files are changed
+        new Thread(new FileWatcher(node, "./data/" + name)).start();
+
 
         try {
             // Start the UDP unicast receiver so this node can receive messages (e.g., nodeCount, neighbors)
