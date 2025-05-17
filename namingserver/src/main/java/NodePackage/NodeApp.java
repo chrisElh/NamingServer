@@ -1,9 +1,6 @@
 package NodePackage;
 
-import NodePackage.communication.MulticastReceiver;
-import NodePackage.communication.MulticastSender;
-import NodePackage.communication.UnicastReceiver;
-import NodePackage.communication.FileReceiver;
+import NodePackage.communication.*;
 import Functions.HashingFunction;
 
 import java.io.File;
@@ -19,15 +16,6 @@ public class NodeApp {
         Node node = new Node(name, unicastPort);
 
 
-        // Laad lokale bestanden
-       // node.loadLocalFilesFromDirectory("./data/" + name);
-        URL resource = NodeApp.class.getClassLoader().getResource("files");
-        if (resource == null) {
-            System.err.println("Directory 'files' not found in resources!");
-            return null;
-        }
-        File dir = new File(resource.getFile());
-        node.loadLocalFilesFromDirectory(dir.getAbsolutePath());
 
 
         try {
@@ -35,7 +23,7 @@ public class NodeApp {
             startUnicastReceiver(node);
 
             //Laat deze node luisteren naar binnenkomende TCP-bestanden op zijn eigen poort.
-            new Thread(new FileReceiver(node.getPort(), dir.getAbsolutePath())).start();
+            new Thread(new FileReceiver(node.getPort(), "./data")).start();
 
 
             // Broadcast this node's presence using multicast
@@ -57,6 +45,8 @@ public class NodeApp {
             System.out.println("Node " + node.getName() + " received message: " + message);
 
             String[] parts = message.trim().split(",");
+            System.out.println(">> Aangekomen bij addNodeFromMulticast");
+
 
             try {
                 if (parts.length == 1) {
@@ -86,8 +76,26 @@ public class NodeApp {
                         decideNeighbors(node);
                     }
 
-                } else {
-                    System.err.println("Invalid message format: " + message);
+
+                }
+
+
+                else if (parts[0].startsWith("REPLICA")) {
+                    String[] replicaParts = message.split(":");
+                    if (replicaParts.length == 3) {
+                        String filename = replicaParts[1];
+                        int targetPort = Integer.parseInt(replicaParts[2]);
+
+                        System.out.println("Instroction received to send the file : " + filename + " → port " + targetPort);
+
+                        // Pad opbouwen naar bestand
+                        String filePath = "C:\\3de_jaar\\3_Distributed_Systeem\\Lab5\\namingserver\\src\\main\\resources" + filename;
+
+                        // Bestand verzenden via TCP
+                        FileSender.sendFile(filePath, targetPort);
+                    } else {
+                        System.err.println("Invalid message format: " + message);
+                    }
                 }
             } catch (NumberFormatException e) {
                 System.err.println("Invalid number format in message: " + message);

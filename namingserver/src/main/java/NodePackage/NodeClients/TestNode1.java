@@ -17,9 +17,10 @@ public class TestNode1 {
             return;
         }
         File dir = new File(resource.getFile());
-        System.out.println(">> Is directory? " + new File(dir.getAbsolutePath()).isDirectory());
 
         node.loadLocalFilesFromDirectory(dir.getAbsolutePath());
+        System.out.println(node.getLocalFileNames());
+
 
         //node.loadLocalFilesFromDirectory("src/main/data/files");
 

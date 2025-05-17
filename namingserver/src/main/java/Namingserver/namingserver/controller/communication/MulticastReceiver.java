@@ -25,7 +25,6 @@ public class MulticastReceiver implements Runnable {
             socket.joinGroup(group);
 
             System.out.println("MulticastReceiver listening on " + MULTICAST_IP + ":" + MULTICAST_PORT);
-
             while (true) {
                 byte[] buf = new byte[256];
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);

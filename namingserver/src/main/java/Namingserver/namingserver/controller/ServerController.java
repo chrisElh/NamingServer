@@ -83,6 +83,8 @@ public class ServerController {
     //Functie om node toe te voegen aan map vanuit multicast
     public String addNodeFromMulticast(Node node) {
         int hash = HashingFunction.hashNodeName(node.getName());
+        System.out.println(">> Aangekomen bij addNodeFromMulticast!!!!!");
+
 
         // Prevent duplicate nodes with the same name (hash collision)
         if (nodeMap.containsKey(hash)) {
@@ -97,6 +99,8 @@ public class ServerController {
         // ------------------------------
 
         // Check if the node has any local file names listed
+        System.out.println(">> Checking replicaHash vs hash: " );
+
         if (node.getLocalFileNames() != null) {
             for (String filename : node.getLocalFileNames()) {
 
@@ -112,6 +116,9 @@ public class ServerController {
                 if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
 
 
+                // 4. If the replica is not the same as the owner, add to replicas
+                System.out.println(">> Checking replicaHash vs hash: " + replicaHash + " vs " + hash);
+
                 if (!replicaHash.equals(hash)) {//hier wordt geconntroleerd als de nieuweiegnaar die de NS berekent niet de originele node is
                     replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);//Voegt de bestandsnaam toe aan de replicas-mapping van die replica-node.
 
@@ -119,14 +126,13 @@ public class ServerController {
                     int originalNodePort = node.getPort();
                     int replicaNodePort = nodeMap.get(replicaHash);
 
+                    System.out.println(">> sendReplicaInstruction() called!");
+
                     ServerUnicastSender.sendReplicaInstruction(String.valueOf(originalNodePort), filename, String.valueOf(replicaNodePort));
                 }
 
 
-                // 4. If the replica is not the same as the owner, add to replicas
-                if (!replicaHash.equals(hash)) {
-                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);
-                }
+
 
                 // Optional: log for debugging
                 System.out.println("Registered file: " + filename +
