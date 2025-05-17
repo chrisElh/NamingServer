@@ -340,6 +340,49 @@ public class ServerController {
     }
 
 
+
+    // SHUTDOWN
+
+    // Graceful shutdown: node calls this before terminating
+    @GetMapping("/shutdown")
+    public Map<String, Integer> shutdown(@RequestParam int port) {
+        // 1. Find node's hash
+        Integer shuttingDownHash = nodeMap.entrySet().stream()
+                .filter(e -> e.getValue().equals(port))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
+
+        if (shuttingDownHash == null) {
+            return Map.of("error", -1);  // not found
+        }
+
+        // 2. Get neighbor hashes
+        List<Integer> hashes = new ArrayList<>(nodeMap.keySet());
+        Collections.sort(hashes);
+        int idx = hashes.indexOf(shuttingDownHash);
+        int prevHash = hashes.get((idx - 1 + hashes.size()) % hashes.size());
+        int nextHash = hashes.get((idx + 1) % hashes.size());
+
+        int prevPort = nodeMap.get(prevHash);
+        int nextPort = nodeMap.get(nextHash);
+
+        // 3. Remove node
+        nodeMap.remove(shuttingDownHash);
+        localFiles.remove(shuttingDownHash);
+        replicas.remove(shuttingDownHash);
+        fileToNodeMap.values().removeIf(v -> v == shuttingDownHash);
+        saveNodeMapToDisk();
+
+        System.out.printf("Node on port %d gracefully shut down. Neighbors: prev=%d, next=%d%n",
+                port, prevPort, nextPort);
+
+        return Map.of(
+                "prevPort", prevPort,
+                "nextPort", nextPort
+        );
+    }
+
 //
 //    // Placeholder
 //    private void saveNodeMapToDisk() {
