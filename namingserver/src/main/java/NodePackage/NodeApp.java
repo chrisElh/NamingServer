@@ -12,10 +12,11 @@ public class NodeApp {
     private final List<int[]> neighborCandidates = new ArrayList<>();
 
     // Creates a new node, starts listening on its own port, and announces itself via multicast
-    public Node createAndAnnounceNewNode(String name, int unicastPort) {
+    public Node createAndAnnounceNewNode(String name, int unicastPort, String dirPath) {
         Node node = new Node(name, unicastPort);
 
 
+        node.loadLocalFilesFromDirectory(dirPath);
 
 
         try {

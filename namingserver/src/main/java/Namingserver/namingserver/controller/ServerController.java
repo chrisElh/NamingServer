@@ -81,10 +81,9 @@ public class ServerController {
 //    }
 
     //Functie om node toe te voegen aan map vanuit multicast
+
     public String addNodeFromMulticast(Node node) {
         int hash = HashingFunction.hashNodeName(node.getName());
-        System.out.println(">> Aangekomen bij addNodeFromMulticast!!!!!");
-
 
         // Prevent duplicate nodes with the same name (hash collision)
         if (nodeMap.containsKey(hash)) {
@@ -99,10 +98,14 @@ public class ServerController {
         // ------------------------------
 
         // Check if the node has any local file names listed
-        System.out.println(">> Checking replicaHash vs hash: " );
 
         if (node.getLocalFileNames() != null) {
+            System.out.println("if binnen gekomen");
+            System.out.println(node.getLocalFileNames());
+            System.out.println("Aantal bestanden: " + node.getLocalFileNames().size());
+
             for (String filename : node.getLocalFileNames()) {
+                System.out.println("for binnen gekomen");
 
                 // 1. Register the file as owned by this node
                 fileToNodeMap.put(filename, hash);
@@ -114,6 +117,8 @@ public class ServerController {
                 int fileHash = HashingFunction.hashNodeName(filename);
                 Integer replicaHash = nodeMap.floorKey(fileHash);
                 if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
+
+
 
 
                 // 4. If the replica is not the same as the owner, add to replicas
