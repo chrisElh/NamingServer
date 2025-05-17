@@ -246,15 +246,30 @@ public class ServerController {
             return "Node not registered: " + nodeName;
         }
 
+        // Register ownership
         fileToNodeMap.put(filename, nodeHash);
         localFiles.computeIfAbsent(nodeHash, k -> new ArrayList<>()).add(filename);
 
+        // Find appropriate replica node
         int fileHash = HashingFunction.hashNodeName(filename);
         Integer replicaNode = nodeMap.floorKey(fileHash);
-        if (replicaNode == null) replicaNode = nodeMap.lastKey();
+        if (replicaNode == null) replicaNode = nodeMap.lastKey(); // wrap around
 
         if (!replicaNode.equals(nodeHash)) {
+            // Register replica
             replicas.computeIfAbsent(replicaNode, k -> new ArrayList<>()).add(filename);
+
+            // Send replication instruction
+            int originalNodePort = nodeMap.get(nodeHash);
+            int replicaNodePort = nodeMap.get(replicaNode);
+
+            System.out.println("[registerFile] Sending unicast: " + filename + " from " + originalNodePort + " → " + replicaNodePort);
+
+            ServerUnicastSender.sendReplicaInstruction(
+                    String.valueOf(originalNodePort),
+                    filename,
+                    String.valueOf(replicaNodePort)
+            );
         }
 
         return "File '" + filename + "' registered to node '" + nodeName + "' (hash: " + nodeHash + "), replica at node hash: " + replicaNode;

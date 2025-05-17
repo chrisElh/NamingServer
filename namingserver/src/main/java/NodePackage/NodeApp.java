@@ -33,6 +33,9 @@ public class NodeApp {
 
             new Thread(new MulticastReceiver(node)).start();
 
+            // we start the watcher to detect when the files are changed
+            new Thread(new FileWatcher(node, dirPathLocal + name)).start();
+
         } catch (Exception e) {
             System.err.println("Error while sending multicast:");
             e.printStackTrace();
