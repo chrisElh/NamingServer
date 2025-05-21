@@ -102,6 +102,16 @@ public class Node {
         System.out.println("   Next ID: " + nextID);
     }
 
+    public File findFileByName(List<File> files, String targetName) {
+        for (File file : files) {
+            if (file.getName().equals(targetName)) {
+                return file;
+            }
+        }
+        return null; // Not found
+    }
+
+
     // ----------------------------
 // Local file methods
 // ----------------------------
@@ -117,6 +127,7 @@ public class Node {
         // Create a File object representing the directory
         File dir = new File(directoryPath);
 
+        //System.out.println(new File(directoryPath).getAbsolutePath());
         // Check if the path exists and is a valid directory
         if (dir.exists() && dir.isDirectory()) {
 
@@ -147,6 +158,18 @@ public class Node {
             System.err.println("Invalid file directory: " + directoryPath);
         }
     }
+
+    // Adds a replicated file to the node's list (both File object and name)
+    public void addReplicatedFile(File file) {
+        if (file != null && file.exists() && file.isFile()) {
+            replicatedFileObjects.add(file);
+            replicatedFileNames.add(file.getName());
+            System.out.println("Replicated file added: " + file.getName());
+        } else {
+            System.err.println("Invalid file, cannot add to replicated list: " + file);
+        }
+    }
+
 
     // Return only the names of the local files (for communication with server)
     public List<String> getLocalFileNames() {

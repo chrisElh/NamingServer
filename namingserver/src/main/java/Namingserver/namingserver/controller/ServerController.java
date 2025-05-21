@@ -1,5 +1,6 @@
 package Namingserver.namingserver.controller;
 
+import Namingserver.namingserver.controller.communication.ServerUnicastSender;
 import NodePackage.Node;
 import Functions.HashingFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -80,7 +81,8 @@ public class ServerController {
 //    }
 
     //Functie om node toe te voegen aan map vanuit multicast
-    public String addNodeFromMulticast(Node node) {
+
+    public String addNodeFromMulticast(Node node, List<String> localFileNames) {
         int hash = HashingFunction.hashNodeName(node.getName());
 
         // Prevent duplicate nodes with the same name (hash collision)
@@ -96,8 +98,10 @@ public class ServerController {
         // ------------------------------
 
         // Check if the node has any local file names listed
-        if (node.getLocalFileNames() != null) {
-            for (String filename : node.getLocalFileNames()) {
+
+        if (localFileNames != null) {
+
+            for (String filename : localFileNames) {
 
                 // 1. Register the file as owned by this node
                 fileToNodeMap.put(filename, hash);
@@ -109,11 +113,28 @@ public class ServerController {
                 int fileHash = HashingFunction.hashNodeName(filename);
                 Integer replicaHash = nodeMap.floorKey(fileHash);
                 if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
+                System.out.println("Filehash:" + fileHash);
+
+
+
 
                 // 4. If the replica is not the same as the owner, add to replicas
-                if (!replicaHash.equals(hash)) {
-                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);
+                System.out.println(">> Checking replicaHash vs hash: " + replicaHash + " vs " + hash);
+
+                if (!replicaHash.equals(hash)) {//hier wordt geconntroleerd als de nieuweiegnaar die de NS berekent niet de originele node is
+                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);//Voegt de bestandsnaam toe aan de replicas-mapping van die replica-node.
+
+                    //  Stuur replica instructie via UDP
+                    int originalNodePort = node.getPort();
+                    int replicaNodePort = nodeMap.get(replicaHash);
+
+                    System.out.println(">> sendReplicaInstruction() called!");
+
+                    ServerUnicastSender.sendReplicaInstruction(String.valueOf(originalNodePort), filename, String.valueOf(replicaNodePort));
                 }
+
+
+
 
                 // Optional: log for debugging
                 System.out.println("Registered file: " + filename +
@@ -166,6 +187,18 @@ public class ServerController {
                 Integer replicaHash = nodeMap.floorKey(fileHash);
                 if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
 
+
+                if (!replicaHash.equals(hash)) {//hier wordt geconntroleerd als de nieuweiegnaar die de NS berekent niet de originele node is
+                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);//Voegt de bestandsnaam toe aan de replicas-mapping van die replica-node.
+
+                    //  Stuur replica instructie via UDP
+                    int originalNodePort = node.getPort();
+                    int replicaNodePort = nodeMap.get(replicaHash);
+
+                    ServerUnicastSender.sendReplicaInstruction(String.valueOf(originalNodePort), filename, String.valueOf(replicaNodePort));
+                }
+
+
                 // 4. If the replica is not the same as the owner, add to replicas
                 if (!replicaHash.equals(hash)) {
                     replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);
@@ -213,15 +246,30 @@ public class ServerController {
             return "Node not registered: " + nodeName;
         }
 
+        // Register ownership
         fileToNodeMap.put(filename, nodeHash);
         localFiles.computeIfAbsent(nodeHash, k -> new ArrayList<>()).add(filename);
 
+        // Find appropriate replica node
         int fileHash = HashingFunction.hashNodeName(filename);
         Integer replicaNode = nodeMap.floorKey(fileHash);
-        if (replicaNode == null) replicaNode = nodeMap.lastKey();
+        if (replicaNode == null) replicaNode = nodeMap.lastKey(); // wrap around
 
         if (!replicaNode.equals(nodeHash)) {
+            // Register replica
             replicas.computeIfAbsent(replicaNode, k -> new ArrayList<>()).add(filename);
+
+            // Send replication instruction
+            int originalNodePort = nodeMap.get(nodeHash);
+            int replicaNodePort = nodeMap.get(replicaNode);
+
+            System.out.println("[registerFile] Sending unicast: " + filename + " from " + originalNodePort + " → " + replicaNodePort);
+
+            ServerUnicastSender.sendReplicaInstruction(
+                    String.valueOf(originalNodePort),
+                    filename,
+                    String.valueOf(replicaNodePort)
+            );
         }
 
         return "File '" + filename + "' registered to node '" + nodeName + "' (hash: " + nodeHash + "), replica at node hash: " + replicaNode;
