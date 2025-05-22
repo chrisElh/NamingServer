@@ -28,14 +28,22 @@ public class NodeApp {
         System.out.println("From NodeApp: " + node.getLocalFileNames());
 
         try {
+            // Open gedeelde TCP-server
             ServerSocket sharedSocket = new ServerSocket(unicastPort);
-            System.out.println("TCP server socket opened on port " + unicastPort);
-            startTcpPingServer(node);
+            System.out.println("✔️ TCP server socket opened on port " + unicastPort);
+
+            // Maak file receiver aan (zonder eigen socket)
+            FileReceiver fileReceiver = new FileReceiver(dirPathReplica, node);
+
+            // Start TCP handler die alles verwerkt
+            new Thread(new TCPMessageHandler(sharedSocket, node, this, fileReceiver)).start();
+
+            // Start UDP en andere componenten
             startUnicastReceiver(node);
-            new Thread(new FileReceiver(sharedSocket, dirPathReplica, node)).start();
             MulticastSender.sendMulticast(name, unicastPort, node.getLocalFileNames());
             new Thread(new MulticastReceiver(node, this)).start();
             new Thread(new FileWatcher(node, dirPathLocal + name)).start();
+
 
         } catch (Exception e) {
             System.err.println("Error while sending multicast:");
@@ -44,11 +52,17 @@ public class NodeApp {
         return node;
     }
 
+    /**
+     * Start een UnicastReceiver (UDP) op de poort van de node.
+     * Verwerkt enkel REPLICA-commando’s en neighbor hash-informatie.
+     * 'PING' en failure detection gebeuren elders (via TCP).
+     */
     private void startUnicastReceiver(Node node) {
         UnicastReceiver.MessageHandler handler = message -> {
             System.out.println("Node " + node.getName() + " received message: " + message);
 
             try {
+                // 🟣 1. Verwerk replica-verzoek
                 if (message.startsWith("REPLICA:")) {
                     String[] parts = message.split(":");
                     if (parts.length == 3) {
@@ -57,28 +71,44 @@ public class NodeApp {
                         File file = node.findFileByName(node.getLocalFileObjects(), filename);
                         FileSender.sendFile(file, targetPort);
                     }
+
+                    // 🟡 2. Verwerk neighborinformatie uit multicast-response
                 } else {
                     String[] parts = message.trim().split(",");
+
+                    System.out.println("WE KOMEN NET VOOR DE PART SPLITSING!!!!!!!!!!!!!!!!!1");
+
+                    // ⬅️ Alleen totaal aantal nodes (bv. "2")
                     if (parts.length == 1) {
+                        System.out.println("PAAAAART1!!!!!!!!!!!!!11");
                         int total = Integer.parseInt(parts[0]);
+
+                        // Alleen node → zichzelf instellen als eigen neighbor
                         if (total < 1) {
                             int hash = HashingFunction.hashNodeName(node.getName());
                             node.setPreviousID(hash);
                             node.setNextID(hash);
                             System.out.println("Solo node → previousID and nextID set to own hash: " + hash);
                         }
+
                         node.setTotalNodes(total);
                         System.out.println("Updated totalNodes to: " + total);
                     }
-//                    else if (parts.length == 2) {
-//                        int sender = Integer.parseInt(parts[0]);
-//                        int other = Integer.parseInt(parts[1]);
-//                        neighborCandidates.add(new int[]{sender, other});
-//
-//                        if (neighborCandidates.size() >= node.getTotalNodes() - 1) {
-//                            decideNeighbors(node);
-//                        }
-//                    }
+
+                    else if (parts.length == 2) {
+                        System.out.println("PAAAAART2222!!!!!!!!!!!!!11");
+                        int sender = Integer.parseInt(parts[0]);
+                        int other = Integer.parseInt(parts[1]);
+                        neighborCandidates.add(new int[]{sender, other});
+
+                        System.out.println("Received neighbor candidate: " + sender + ", " + other);
+
+                        // Als we genoeg reacties hebben (optioneel: wachten op totalNodes - 1)
+                        if (neighborCandidates.size() >= node.getTotalNodes() - 1) {
+
+                            decideNeighbors(node);
+                        }
+                    }
                     else {
                         System.err.println("Unknown message format: " + message);
                     }
@@ -105,7 +135,7 @@ public class NodeApp {
         System.out.printf("✔️ TCP ping server listening on port %d%n", node.getPort());
     }
 
-    private void decideNeighbors(Node node) {
+    public void decideNeighbors(Node node) {
         int selfHash = HashingFunction.hashNodeName(node.getName());
         int bestPrev = -1;
         int bestNext = -1;

@@ -3,66 +3,32 @@ package NodePackage.communication;
 import NodePackage.Node;
 
 import java.io.*;
-import java.net.ServerSocket;
 import java.net.Socket;
 
-public class FileReceiver implements Runnable {
+/**
+ * Verwerkt bestanden die via TCP worden ontvangen.
+ * Dit component doet geen accept(), maar enkel verwerking.
+ */
+public class FileReceiver {
 
-    private final ServerSocket serverSocket;
     private final String storageDirectory;
     private final Node node;
 
-
-    public FileReceiver(ServerSocket serverSocket, String storageDirectory, Node node) {
-        this.serverSocket = serverSocket;
+    public FileReceiver(String storageDirectory, Node node) {
         this.storageDirectory = storageDirectory;
         this.node = node;
     }
 
-    @Override
-    public void run() {
-//        try (ServerSocket serverSocket = new ServerSocket(port)) {
-//            System.out.println("FileReceiver listening on TCP port " + port);
-//
-//            while (true) {
-//                Socket socket = serverSocket.accept();
-//
-//                // Nieuw inkomend bestand verwerken
-//                new Thread(() -> handleIncomingFile(socket)).start();
-//            }
-//        } catch (IOException e) {
-//            System.err.println(" Error in FileReceiver: " + e.getMessage());
-//        }
+    /**
+     * Ontvangt en slaat het bestand op in de replicamap.
+     *
+     * @param socket    de actieve socket met de afzender
+     * @param fileName  bestandsnaam uit de header
+     * @param input     inputstream van de socket
+     */
+    public void handleFile(Socket socket, String fileName, InputStream input) {
         try {
-            System.out.println("FileReceiver listening on TCP port " + node.getPort());
-
-            while (true) {
-                Socket socket = serverSocket.accept();
-
-                // Nieuw inkomend bestand verwerken
-                new Thread(() -> handleIncomingFile(socket)).start();
-            }
-        } catch (IOException e) {
-            System.err.println(" Error in FileReceiver: " + e.getMessage());
-        }
-
-    }
-
-    private void handleIncomingFile(Socket socket) {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-             InputStream input = socket.getInputStream()) {
-
-            // 1. Lees eerst de opdrachtregel, bv. "STORE_FILE:example.txt"
-            String header = reader.readLine();
-            if (header == null || !header.startsWith("STORE_FILE:")) {
-                System.err.println(" Invalid headerformat");
-                return;
-            }
-
-            String fileName = header.substring("STORE_FILE:".length());
             File outputFile = new File(storageDirectory, fileName);
-
-            // 2. Open outputstream en schrijf de binnenkomende data byte-per-byte
             try (FileOutputStream fileOut = new FileOutputStream(outputFile)) {
                 byte[] buffer = new byte[4096];
                 int bytesRead;
@@ -71,17 +37,11 @@ public class FileReceiver implements Runnable {
                 }
             }
 
-
-            //We add the file to the arrays of the object
             node.addReplicatedFile(outputFile);
-
-//            System.out.println("file added: " + outputFile.getAbsolutePath());
-            System.out.println("File received in :" + outputFile);
-
-
+            System.out.println("📁 File stored: " + outputFile.getAbsolutePath());
 
         } catch (IOException e) {
-            System.err.println("Error at the receiver file: " + e.getMessage());
+            System.err.println("❌ Error saving file: " + e.getMessage());
         }
     }
 }
