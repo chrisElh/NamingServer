@@ -60,7 +60,7 @@ public class TCPMessageHandler implements Runnable {
 
             if (header.startsWith("PING")) {
                 System.out.println("✅ Ping received from " + socket.getRemoteSocketAddress());
-                app.decideNeighbors(node); // of andere pinglogica
+               // app.decideNeighbors(node); // of andere pinglogica
                 return;
             }
 
