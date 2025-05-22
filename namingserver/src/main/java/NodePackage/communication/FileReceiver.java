@@ -8,21 +8,33 @@ import java.net.Socket;
 
 public class FileReceiver implements Runnable {
 
-    private final int port;
+    private final ServerSocket serverSocket;
     private final String storageDirectory;
     private final Node node;
 
 
-    public FileReceiver(int port, String storageDirectory, Node node) {
-        this.port = port;
+    public FileReceiver(ServerSocket serverSocket, String storageDirectory, Node node) {
+        this.serverSocket = serverSocket;
         this.storageDirectory = storageDirectory;
         this.node = node;
     }
 
     @Override
     public void run() {
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("FileReceiver listening on TCP port " + port);
+//        try (ServerSocket serverSocket = new ServerSocket(port)) {
+//            System.out.println("FileReceiver listening on TCP port " + port);
+//
+//            while (true) {
+//                Socket socket = serverSocket.accept();
+//
+//                // Nieuw inkomend bestand verwerken
+//                new Thread(() -> handleIncomingFile(socket)).start();
+//            }
+//        } catch (IOException e) {
+//            System.err.println(" Error in FileReceiver: " + e.getMessage());
+//        }
+        try {
+            System.out.println("FileReceiver listening on TCP port " + node.getPort());
 
             while (true) {
                 Socket socket = serverSocket.accept();
@@ -33,6 +45,7 @@ public class FileReceiver implements Runnable {
         } catch (IOException e) {
             System.err.println(" Error in FileReceiver: " + e.getMessage());
         }
+
     }
 
     private void handleIncomingFile(Socket socket) {

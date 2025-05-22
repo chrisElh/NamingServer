@@ -28,9 +28,11 @@ public class NodeApp {
         System.out.println("From NodeApp: " + node.getLocalFileNames());
 
         try {
+            ServerSocket sharedSocket = new ServerSocket(unicastPort);
+            System.out.println("TCP server socket opened on port " + unicastPort);
             startTcpPingServer(node);
             startUnicastReceiver(node);
-            new Thread(new FileReceiver(node.getPort(), dirPathReplica, node)).start();
+            new Thread(new FileReceiver(sharedSocket, dirPathReplica, node)).start();
             MulticastSender.sendMulticast(name, unicastPort, node.getLocalFileNames());
             new Thread(new MulticastReceiver(node, this)).start();
             new Thread(new FileWatcher(node, dirPathLocal + name)).start();
@@ -67,15 +69,17 @@ public class NodeApp {
                         }
                         node.setTotalNodes(total);
                         System.out.println("Updated totalNodes to: " + total);
-                    } else if (parts.length == 2) {
-                        int sender = Integer.parseInt(parts[0]);
-                        int other = Integer.parseInt(parts[1]);
-                        neighborCandidates.add(new int[]{sender, other});
-
-                        if (neighborCandidates.size() >= node.getTotalNodes() - 1) {
-                            decideNeighbors(node);
-                        }
-                    } else {
+                    }
+//                    else if (parts.length == 2) {
+//                        int sender = Integer.parseInt(parts[0]);
+//                        int other = Integer.parseInt(parts[1]);
+//                        neighborCandidates.add(new int[]{sender, other});
+//
+//                        if (neighborCandidates.size() >= node.getTotalNodes() - 1) {
+//                            decideNeighbors(node);
+//                        }
+//                    }
+                    else {
                         System.err.println("Unknown message format: " + message);
                     }
                 }
@@ -89,15 +93,16 @@ public class NodeApp {
     }
 
     private void startTcpPingServer(Node node) {
-        new Thread(() -> {
-            try (ServerSocket server = new ServerSocket(node.getPort())) {
-                System.out.printf("✔️ TCP ping server listening on port %d%n", node.getPort());
-                while (true) {
-                    Socket s = server.accept();
-                    s.close();
-                }
-            } catch (IOException ignored) { }
-        }, "TCP-Ping-Server-" + node.getPort()).start();
+//        new Thread(() -> {
+//            try (ServerSocket server = new ServerSocket(node.getPort())) {
+//                System.out.printf("✔️ TCP ping server listening on port %d%n", node.getPort());
+//                while (true) {
+//                    Socket s = server.accept();
+//                    s.close();
+//                }
+//            } catch (IOException ignored) { }
+//        }, "TCP-Ping-Server-" + node.getPort()).start();
+        System.out.printf("✔️ TCP ping server listening on port %d%n", node.getPort());
     }
 
     private void decideNeighbors(Node node) {
