@@ -469,6 +469,7 @@ public class ServerController {
         if (lostFiles != null) {
             for (String file : lostFiles) {
                 Integer currentOwner = fileToNodeMap.get(file);
+                System.out.println("Checking file '" + file + "' - currentOwner: " + currentOwner + ", failedHash: " + failedHash);
 
                 if (currentOwner != null && currentOwner.equals(failedHash)) {
                     // check of er een replica bestaat

@@ -1,13 +1,12 @@
 package NodePackage;
 
+import NodePackage.Agent.FailureAgent;
 import NodePackage.communication.*;
 import Functions.HashingFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +22,7 @@ public class NodeApp {
     private final List<int[]> neighborCandidates = new ArrayList<>();
 
     public Node createAndAnnounceNewNode(String name, int unicastPort, String dirPathLocal, String dirPathReplica) {
-        Node node = new Node(name, unicastPort);
+        Node node = new Node(name, unicastPort, dirPathLocal, dirPathReplica);
         node.loadLocalFilesFromDirectory(dirPathLocal);
         System.out.println("From NodeApp: " + node.getLocalFileNames());
 
