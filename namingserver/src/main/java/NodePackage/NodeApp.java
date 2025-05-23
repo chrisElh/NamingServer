@@ -154,26 +154,23 @@ public class NodeApp {
                 minNextDistance = diff;
                 bestNext = candidate;
             }
-        }
-
-//        for (int[] pair : neighborCandidates) {
-//            int candidate1 = pair[0];
-//            int candidate2 = pair[1];
-//            // Controleer beide kanten als kandidaat buur
-//            int[] candidates = {candidate1, candidate2};
+//            int nodeHashA = pair[0];
+//            int nodeHashB = pair[1];
+//            int[] candidates = {nodeHashA, nodeHashB};
+//
 //            for (int candidate : candidates) {
-//                int diff = Math.floorMod(selfHash - candidate, Integer.MAX_VALUE);
-//                if (diff > 0 && diff < minPrevDistance) {
-//                    minPrevDistance = diff;
+//                if (candidate == selfHash) continue;
+//
+//                if (bestNext == -1 || isBetween(selfHash, candidate, bestNext)) {
+//                    bestNext = candidate;
+//
+//                }
+//
+//                if (bestPrev == -1 || isBetween(bestPrev, candidate, selfHash)) {
 //                    bestPrev = candidate;
 //                }
-//                diff = Math.floorMod(candidate - selfHash, Integer.MAX_VALUE);
-//                if (diff > 0 && diff < minNextDistance) {
-//                    minNextDistance = diff;
-//                    bestNext = candidate;
-//                }
 //            }
-//        }
+        }
 
         node.setPreviousID(bestPrev);
         node.setNextID(bestNext);
@@ -191,6 +188,23 @@ public class NodeApp {
             this.startFailureMonitor(node);
         }
     }
+
+//    private boolean isBetween(int start, int x, int end) {
+//        if (start < end) {
+//            return start < x && x < end;
+//        } else {
+//            // wrap-around case
+//            return start < x || x < end;
+//        }
+//    }
+
+
+    //to get and change the neighbors (especially needed for the first node, since it can't otherwise change its neighbors)
+    public List<int[]> getNeighborCandidates() {
+        return neighborCandidates;
+    }
+
+
 
     public void startFailureMonitor(Node node) {
         scheduler.scheduleAtFixedRate(() -> {

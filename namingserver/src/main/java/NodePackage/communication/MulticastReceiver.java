@@ -76,21 +76,27 @@ public class MulticastReceiver implements Runnable {
                 boolean updated = false;
 
 
-                sendResponse(newPort, currentID + "," + previousID);
                 System.out.println("SEND RESPONSE GEDAAAAAAN");
 
                 if (betweenNext) {
                     // update nextID, reply with your old next
                     node.setNextID(newHash);
+                    app.getNeighborCandidates().add(new int[]{newHash, node.getNextID()}); // for next, needed for the first started node, since it never gets the chance to update neighborcandidate like the other ones
+
                     updated = true;
                 }
                 if (betweenPrev) {
                     // update previousID, reply with your old prev
                     node.setPreviousID(newHash);
+                   app.getNeighborCandidates().add(new int[]{newHash, node.getPreviousID()}); // for prev
+
                     updated = true;
                 }
 
+                //we first update and then we send response to the node with the updated IDs
+                sendResponse(newPort, currentID + "," + previousID);
 
+                app.decideNeighbors(node);          //works with the newly updated neighborcandidates
 
                 if (updated) {
                     System.out.println("Node " + node.getName()
@@ -112,7 +118,7 @@ public class MulticastReceiver implements Runnable {
 
 
                 // Nieuwe node toegevoegd → herbereken buren
-                app.decideNeighbors(node);
+               // app.decideNeighbors(node);
             }
 
 
