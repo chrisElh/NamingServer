@@ -22,7 +22,7 @@ public class NodeApp {
     private final List<int[]> neighborCandidates = new ArrayList<>();
 
     public Node createAndAnnounceNewNode(String name, int unicastPort, String dirPathLocal, String dirPathReplica) {
-        Node node = new Node(name, unicastPort, dirPathLocal, dirPathReplica);
+        Node node = new Node(name, unicastPort);
         node.loadLocalFilesFromDirectory(dirPathLocal);
         System.out.println("From NodeApp: " + node.getLocalFileNames());
 

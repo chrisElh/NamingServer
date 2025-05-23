@@ -307,11 +307,25 @@ public class ServerController {
 
 
 
+//    @GetMapping("/getLocalFiles")
+//    public Map<Integer, List<String>> getAllLFiles() {
+//        return localFiles;
+//    }
+//
+//
+//    @GetMapping("/getReplicaFiles")
+//    public Map<Integer, List<String>> getAllRFiles() {
+//        return replicas;
+//    }
+
+
+
     // Returns local files owned by a specific node
     @GetMapping("/getLocalFiles")
-    public List<String> getLocalFiles(@RequestParam String nodeName) {
-        int hash = HashingFunction.hashNodeName(nodeName);
-        return localFiles.getOrDefault(hash, Collections.emptyList());
+    public Map<Integer,List<String>> getLocalFiles(@RequestParam String nodeName) {
+//        int hash = HashingFunction.hashNodeName(nodeName);
+//        return localFiles.getOrDefault(hash, Collections.emptyList());
+        return localFiles;
     }
 
     // Returns replicated files for a specific node
