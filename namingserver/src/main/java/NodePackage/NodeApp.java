@@ -156,6 +156,25 @@ public class NodeApp {
             }
         }
 
+//        for (int[] pair : neighborCandidates) {
+//            int candidate1 = pair[0];
+//            int candidate2 = pair[1];
+//            // Controleer beide kanten als kandidaat buur
+//            int[] candidates = {candidate1, candidate2};
+//            for (int candidate : candidates) {
+//                int diff = Math.floorMod(selfHash - candidate, Integer.MAX_VALUE);
+//                if (diff > 0 && diff < minPrevDistance) {
+//                    minPrevDistance = diff;
+//                    bestPrev = candidate;
+//                }
+//                diff = Math.floorMod(candidate - selfHash, Integer.MAX_VALUE);
+//                if (diff > 0 && diff < minNextDistance) {
+//                    minNextDistance = diff;
+//                    bestNext = candidate;
+//                }
+//            }
+//        }
+
         node.setPreviousID(bestPrev);
         node.setNextID(bestNext);
         System.out.println("Chosen neighbors for " + node.getName() + " → prevID: " + bestPrev + ", nextID: " + bestNext);
@@ -167,7 +186,10 @@ public class NodeApp {
         System.out.printf("   ↳ neighbor ports set: prevPort=%d, nextPort=%d%n",
                 neighborPorts[0], neighborPorts[1]);
 
-        startFailureMonitor(node);
+        //we check wether
+        if (!node.getFailureMonitorStarted()) {//&& node.getNextPort() > 0) {  // boolean flag in Node class
+            this.startFailureMonitor(node);
+        }
     }
 
     public void startFailureMonitor(Node node) {

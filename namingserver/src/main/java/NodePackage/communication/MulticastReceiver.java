@@ -104,12 +104,14 @@ public class MulticastReceiver implements Runnable {
 
                 System.out.printf("↳ %s refreshed neighbor ports: prevPort=%d, nextPort=%d%n",
                 node.getName(), ports[0], ports[1]);
-                if (!node.getFailureMonitorStarted()) {  // boolean flag in Node class
-                    app.startFailureMonitor(node);
-                }
 
 
-                // 🔁 Nieuwe node toegevoegd → herbereken buren
+//                if (!node.getFailureMonitorStarted()) {  // boolean flag in Node class
+//                    app.startFailureMonitor(node);
+//                }
+
+
+                // Nieuwe node toegevoegd → herbereken buren
                 app.decideNeighbors(node);
             }
 
