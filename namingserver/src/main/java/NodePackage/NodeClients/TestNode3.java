@@ -18,7 +18,7 @@ public class TestNode3 {
 //            return;
 //        }
 //        File dir = new File(resource.getFile());
-        Node node = app.createAndAnnounceNewNode("Edward", 2570, "C:\\Users\\chris\\IdeaProjects\\NServer\\namingserver\\src\\main\\resources\\files3\\local", "C:\\Users\\chris\\IdeaProjects\\NServer\\namingserver\\src\\main\\resources\\files3\\replicas");
+        Node node = app.createAndAnnounceNewNode("Edward", 2570, "C:\\3de_jaar\\3_Distributed_Systeem\\Lab5\\namingserver\\src\\main\\resources\\files3\\locale", "C:\\3de_jaar\\3_Distributed_Systeem\\Lab5\\namingserver\\src\\main\\resources\\files3\\replica");
         System.out.println(node.getLocalFileNames());
 //        Node node = app.createAndAnnounceNewNode("TestNode2", 2000);
 

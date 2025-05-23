@@ -179,6 +179,9 @@ public class NodeApp {
                 s.getOutputStream().write("PING".getBytes());
             } catch (IOException ioe) {
                 System.err.println("Failure detected on port " + failedPort);
+                System.err.println("Detected failure, reporting failed node port: " + failedPort);
+
+                FailureAgent.reportFailure(failedPort);
                 int[] nb = getUpdatedNeighborsFromNamingServer(failedPort);
                 node.setPreviousPort(nb[0]);
                 node.setNextPort(nb[1]);
