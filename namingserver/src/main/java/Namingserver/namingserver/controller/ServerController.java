@@ -308,11 +308,25 @@ public class ServerController {
 
 
 
+//    @GetMapping("/getLocalFiles")
+//    public Map<Integer, List<String>> getAllLFiles() {
+//        return localFiles;
+//    }
+//
+//
+//    @GetMapping("/getReplicaFiles")
+//    public Map<Integer, List<String>> getAllRFiles() {
+//        return replicas;
+//    }
+
+
+
     // Returns local files owned by a specific node
     @GetMapping("/getLocalFiles")
-    public List<String> getLocalFiles(@RequestParam String nodeName) {
-        int hash = HashingFunction.hashNodeName(nodeName);
-        return localFiles.getOrDefault(hash, Collections.emptyList());
+    public Map<Integer,List<String>> getLocalFiles(@RequestParam String nodeName) {
+//        int hash = HashingFunction.hashNodeName(nodeName);
+//        return localFiles.getOrDefault(hash, Collections.emptyList());
+        return localFiles;
     }
 
     // Returns replicated files for a specific node
@@ -341,6 +355,8 @@ public class ServerController {
 
         return result;
     }
+
+
 
     //Failure code
     // 1) DTO (data transfer object) for JSON response, this class can create an object that carries the data we want to send (port numbers)
@@ -439,4 +455,81 @@ public class ServerController {
 //    private void saveNodeMapToDisk() {
 //        // TODO: implement if needed
 //    }
+
+
+
+
+
+
+    public void handleFailure(int failedPort) {
+        // 1. Zoek hash van gefaalde node
+        Integer failedHash = nodeMap.entrySet().stream()
+                .filter(e -> e.getValue().equals(failedPort))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
+
+        if (failedHash == null) {
+            System.err.println("❌ Failed node not found in map (port " + failedPort + ")");
+            return;
+        }
+
+        System.out.println("🚨 Handling failure for node on port " + failedPort + " (hash " + failedHash + ")");
+
+        // 2. Verwijder node en bijhorende bestanden
+        nodeMap.remove(failedHash);
+        List<String> lostFiles = localFiles.remove(failedHash);
+        replicas.remove(failedHash);
+
+        if (lostFiles != null) {
+            for (String file : lostFiles) {
+                Integer currentOwner = fileToNodeMap.get(file);
+                System.out.println("Checking file '" + file + "' - currentOwner: " + currentOwner + ", failedHash: " + failedHash);
+
+                if (currentOwner != null && currentOwner.equals(failedHash)) {
+                    // check of er een replica bestaat
+                    Optional<Map.Entry<Integer, List<String>>> replicaHolder = replicas.entrySet().stream()
+                            .filter(e -> e.getValue().contains(file))
+                            .findFirst();
+
+                    if (replicaHolder.isPresent()) {
+                        Integer newOwnerHash = replicaHolder.get().getKey();
+
+                        // 1. Promote replica → eigenaar
+                        fileToNodeMap.put(file, newOwnerHash);
+                        localFiles.computeIfAbsent(newOwnerHash, k -> new ArrayList<>()).add(file);
+
+                        // 2. Verwijder uit oude replica-lijst
+                        replicas.get(newOwnerHash).remove(file);
+
+                        // 3. Zoek nieuwe replica (volgende node)
+                        int fileHash = HashingFunction.hashNodeName(file);
+                        Integer newReplica = nodeMap.floorKey(fileHash);
+                        if (newReplica == null) newReplica = nodeMap.lastKey();
+
+                        if (!newReplica.equals(newOwnerHash)) {
+                            replicas.computeIfAbsent(newReplica, k -> new ArrayList<>()).add(file);
+
+                            int fromPort = nodeMap.get(newOwnerHash);
+                            int toPort = nodeMap.get(newReplica);
+                            ServerUnicastSender.sendReplicaInstruction(String.valueOf(fromPort), file, String.valueOf(toPort));
+                        }
+
+                        System.out.println("✅ File '" + file + "' recovered via replica (new owner hash: " + newOwnerHash + ")");
+                    } else {
+                        System.err.println("❌ File '" + file + "' lost — no replica available");
+                        fileToNodeMap.remove(file); // niet meer beschikbaar
+                    }
+                }
+            }
+        }
+
+        System.out.println("🧹 Failure cleanup done for port " + failedPort);
+    }
+
+
+
+
+
+
 }

@@ -1,13 +1,12 @@
 package NodePackage;
 
+import NodePackage.Agent.FailureAgent;
 import NodePackage.communication.*;
 import Functions.HashingFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -215,6 +214,9 @@ public class NodeApp {
                 s.getOutputStream().write("PING".getBytes());
             } catch (IOException ioe) {
                 System.err.println("Failure detected on port " + failedPort);
+                System.err.println("Detected failure, reporting failed node port: " + failedPort);
+
+                FailureAgent.reportFailure(failedPort);
                 int[] nb = getUpdatedNeighborsFromNamingServer(failedPort);
                 node.setPreviousPort(nb[0]);
                 node.setNextPort(nb[1]);

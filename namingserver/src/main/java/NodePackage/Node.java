@@ -9,6 +9,11 @@ public class Node {
     private String name;
     private int port; // NEW: unicast port
 
+//    private String pathLocal;
+//
+//    private String pathReplica;
+
+
     // IDs of neighboring nodes in the ring
     private int previousID = -1;
     private int nextID = -1;
@@ -53,6 +58,12 @@ public class Node {
         this.name = name;
         this.port = port;
     }
+//    public Node(String name, int port, String pathLocal, String pathReplica) {
+//        this.name = name;
+//        this.port = port;
+//        this.pathLocal = pathLocal;
+//        this.pathReplica = pathReplica;
+//    }
 
     // Getters
     public String getName() {
