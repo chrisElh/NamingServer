@@ -22,10 +22,6 @@ public class TestNode2 {
       //  Node node = app.createAndAnnounceNewNode("Setare", 9060, "C:\\Users\\edwar\\Universiteit\\6-DIST\\Practicum\\Lab5\\Replication\\namingserver\\src\\main\\resources\\files2\\local", "C:\\Users\\edwar\\Universiteit\\6-DIST\\Practicum\\Lab5\\Replication\\namingserver\\src\\main\\resources\\files2\\replica");
 
         System.out.println(node.getLocalFileNames());
-//        Node node = app.createAndAnnounceNewNode("TestNode2", 2000);
 
-//        Thread.sleep(15000);
-////
-//        NodeApp.shutdownGracefully(node);
     }
 }
