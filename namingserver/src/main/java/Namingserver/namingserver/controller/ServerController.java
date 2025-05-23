@@ -42,46 +42,8 @@ public class ServerController {
         }
     }
 
-//    // Returns the previous node (circular)
-//    @PostMapping("/getPrevious")
-//    public Node getPrevious(@RequestBody Node node) {
-//        int hash = HashingFunction.hashNodeName(node.getName());
-//        Integer prevHash = nodeMap.lowerKey(hash);
-//
-//        if (prevHash == null) {
-//            prevHash = nodeMap.lastKey();
-//        }
-//
-//        String prevIp = nodeMap.get(prevHash);
-//        String name = getNodeNameFromIp(prevIp);
-//        int port = node.getPort();
-//
-//        return new Node(prevIp, name, port);
-//    }
 
-    // Returns the next node (circular)
-//    @PostMapping("/getNext")
-//    public Node getNext(@RequestBody Node node) {
-//        int hash = HashingFunction.hashNodeName(node.getName());
-//        Integer nextHash = nodeMap.higherKey(hash);
-//
-//        if (nextHash == null) {
-//            nextHash = nodeMap.firstKey();
-//        }
-//
-//        String nextIp = nodeMap.get(nextHash);
-//        String name = getNodeNameFromIp(nextIp);
-//
-//        return new Node(nextIp, name);
-//    }
-
-    // Helper method to retrieve a node name based on its IP
-//    private String getNodeNameFromIp(String ip) {
-//        return ipToName.getOrDefault(ip, "unknown");
-//    }
-
-    //Functie om node toe te voegen aan map vanuit multicast
-
+     // REPLICATION FIX
     public String addNodeFromMulticast(Node node, List<String> localFileNames) {
         int hash = HashingFunction.hashNodeName(node.getName());
 
@@ -114,24 +76,25 @@ public class ServerController {
                 Integer replicaHash = nodeMap.floorKey(fileHash);
                 if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
                 System.out.println("Filehash:" + fileHash);
+                if (replicaHash.equals(hash)) {
+                    replicaHash = nodeMap.floorKey(replicaHash - 1);
+                    if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
+                }
 
 
 
 
                 // 4. If the replica is not the same as the owner, add to replicas
                 System.out.println(">> Checking replicaHash vs hash: " + replicaHash + " vs " + hash);
+                replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);//Voegt de bestandsnaam toe aan de replicas-mapping van die replica-node.
 
-                if (!replicaHash.equals(hash)) {//hier wordt geconntroleerd als de nieuweiegnaar die de NS berekent niet de originele node is
-                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);//Voegt de bestandsnaam toe aan de replicas-mapping van die replica-node.
+                //  Stuur replica instructie via UDP
+                int originalNodePort = node.getPort();
+                int replicaNodePort = nodeMap.get(replicaHash);
 
-                    //  Stuur replica instructie via UDP
-                    int originalNodePort = node.getPort();
-                    int replicaNodePort = nodeMap.get(replicaHash);
+                System.out.println(">> sendReplicaInstruction() called!");
 
-                    System.out.println(">> sendReplicaInstruction() called!");
-
-                    ServerUnicastSender.sendReplicaInstruction(String.valueOf(originalNodePort), filename, String.valueOf(replicaNodePort));
-                }
+                ServerUnicastSender.sendReplicaInstruction(String.valueOf(originalNodePort), filename, String.valueOf(replicaNodePort));
 
 
 
@@ -251,27 +214,30 @@ public class ServerController {
         fileToNodeMap.put(filename, nodeHash);
         localFiles.computeIfAbsent(nodeHash, k -> new ArrayList<>()).add(filename);
 
-        // Find appropriate replica node
+        // 3. Determine the replica node using consistent hashing
         int fileHash = HashingFunction.hashNodeName(filename);
         Integer replicaNode = nodeMap.floorKey(fileHash);
-        if (replicaNode == null) replicaNode = nodeMap.lastKey(); // wrap around
-
-        if (!replicaNode.equals(nodeHash)) {
-            // Register replica
-            replicas.computeIfAbsent(replicaNode, k -> new ArrayList<>()).add(filename);
-
-            // Send replication instruction
-            int originalNodePort = nodeMap.get(nodeHash);
-            int replicaNodePort = nodeMap.get(replicaNode);
-
-            System.out.println("[registerFile] Sending unicast: " + filename + " from " + originalNodePort + " → " + replicaNodePort);
-
-            ServerUnicastSender.sendReplicaInstruction(
-                    String.valueOf(originalNodePort),
-                    filename,
-                    String.valueOf(replicaNodePort)
-            );
+        if (replicaNode == null) replicaNode = nodeMap.lastKey(); // Wrap around
+        System.out.println("Filehash:" + fileHash);
+        if (replicaNode.equals(nodeHash)) {
+            replicaNode = nodeMap.floorKey(replicaNode - 1);
+            if (replicaNode == null) replicaNode = nodeMap.lastKey(); // Wrap around
         }
+
+
+
+
+        // 4. If the replica is not the same as the owner, add to replicas
+        System.out.println(">> Checking replicaHash vs hash: " + replicaNode + " vs " + nodeHash);
+        replicas.computeIfAbsent(replicaNode, k -> new ArrayList<>()).add(filename);//Voegt de bestandsnaam toe aan de replicas-mapping van die replica-node.
+
+        //  Stuur replica instructie via UDP
+        int originalNodePort = nodeMap.get(nodeHash);
+        int replicaNodePort = nodeMap.get(replicaNode);
+
+        System.out.println(">> sendReplicaInstruction() called!");
+
+        ServerUnicastSender.sendReplicaInstruction(String.valueOf(originalNodePort), filename, String.valueOf(replicaNodePort));
 
         return "File '" + filename + "' registered to node '" + nodeName + "' (hash: " + nodeHash + "), replica at node hash: " + replicaNode;
     }

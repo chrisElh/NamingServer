@@ -18,14 +18,16 @@ public class TestNode2 {
 //            return;
 //        }
 //        File dir = new File(resource.getFile());
+
       //  Node node = app.createAndAnnounceNewNode("Setare", 2050, "C:\\Users\\chris\\IdeaProjects\\NServer\\namingserver\\src\\main\\resources\\files2\\local", "C:\\Users\\chris\\IdeaProjects\\NServer\\namingserver\\src\\main\\resources\\files2\\replicas");
         Node node = app.createAndAnnounceNewNode("Setare", 9060, "/home/tadiwos/6th_Semester/Distributed_Systems/Labs/Lab_5_shutdown_log/Log_NamingServer/namingserver/src/main/resources/files2/local", "/home/tadiwos/6th_Semester/Distributed_Systems/Labs/Lab_5_shutdown_log/Log_NamingServer/namingserver/src/main/resources/files2/replica");
 
         System.out.println(node.getLocalFileNames());
-//        Node node = app.createAndAnnounceNewNode("TestNode2", 2000);
+
 
         Thread.sleep(15000);
 ////
         NodeApp.shutdownGracefully(node);
+
     }
 }

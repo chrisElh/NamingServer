@@ -42,7 +42,7 @@ public class NodeApp {
             startUnicastReceiver(node);
             MulticastSender.sendMulticast(name, unicastPort, node.getLocalFileNames());
             new Thread(new MulticastReceiver(node, this)).start();
-            new Thread(new FileWatcher(node, dirPathLocal + name)).start();
+            new Thread(new FileWatcher(node, dirPathLocal)).start();
 
 
         } catch (Exception e) {

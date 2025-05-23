@@ -18,6 +18,7 @@ public class TestNode3 {
 //            return;
 //        }
 //        File dir = new File(resource.getFile());
+
      //   Node node = app.createAndAnnounceNewNode("Edward", 2570, "C:\\Users\\chris\\IdeaProjects\\NServer\\namingserver\\src\\main\\resources\\files3\\local", "C:\\Users\\chris\\IdeaProjects\\NServer\\namingserver\\src\\main\\resources\\files3\\replicas");
         Node node = app.createAndAnnounceNewNode("Tadiwos", 4060, "/home/tadiwos/6th_Semester/Distributed_Systems/Labs/Lab_5_shutdown_log/Log_NamingServer/namingserver/src/main/resources/files3/local", "/home/tadiwos/6th_Semester/Distributed_Systems/Labs/Lab_5_shutdown_log/Log_NamingServer/namingserver/src/main/resources/files3/replica");
 
