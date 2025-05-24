@@ -22,6 +22,7 @@ public class NamingserverApplication implements CommandLineRunner {
 	public void run(String... args) {
 		new Thread(new MulticastReceiver(controller)).start();
 		new Thread(new FailureListener(controller)).start();
+
 	}
 
 }

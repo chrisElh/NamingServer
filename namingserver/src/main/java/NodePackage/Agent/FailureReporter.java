@@ -4,7 +4,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 
-public class FailureAgent {
+public class FailureReporter {
 
     private static final String NAMING_SERVER_IP = "localhost";
     private static final int NAMING_SERVER_PORT = 8888;  // de poort waarop de FailureListener luistert

@@ -1,6 +1,6 @@
 package NodePackage;
 
-import NodePackage.Agent.FailureAgent;
+import NodePackage.Agent.FailureReporter;
 import NodePackage.communication.*;
 import Functions.HashingFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,7 +41,7 @@ public class NodeApp {
             startUnicastReceiver(node);
             MulticastSender.sendMulticast(name, unicastPort, node.getLocalFileNames());
             new Thread(new MulticastReceiver(node, this)).start();
-            new Thread(new FileWatcher(node, dirPathLocal + name)).start();
+            new Thread(new FileWatcher(node, dirPathLocal )).start();
 
 
         } catch (Exception e) {
@@ -216,7 +216,7 @@ public class NodeApp {
                 System.err.println("Failure detected on port " + failedPort);
                 System.err.println("Detected failure, reporting failed node port: " + failedPort);
 
-                FailureAgent.reportFailure(failedPort);
+                FailureReporter.reportFailure(failedPort);
                 int[] nb = getUpdatedNeighborsFromNamingServer(failedPort);
                 node.setPreviousPort(nb[0]);
                 node.setNextPort(nb[1]);
