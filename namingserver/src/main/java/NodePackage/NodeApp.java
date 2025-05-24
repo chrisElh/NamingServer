@@ -1,12 +1,13 @@
 package NodePackage;
-
-import NodePackage.Agent.FailureReporter;
+//trail
 import NodePackage.communication.*;
 import Functions.HashingFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +42,7 @@ public class NodeApp {
             startUnicastReceiver(node);
             MulticastSender.sendMulticast(name, unicastPort, node.getLocalFileNames());
             new Thread(new MulticastReceiver(node, this)).start();
-            new Thread(new FileWatcher(node, dirPathLocal )).start();
+            new Thread(new FileWatcher(node, dirPathLocal)).start();
 
 
         } catch (Exception e) {
@@ -73,6 +74,23 @@ public class NodeApp {
 
                     // 🟡 2. Verwerk neighborinformatie uit multicast-response
                 } else {
+
+                    message = message.trim();
+
+                    // Handle new control messages for shutdown
+                    if (message.startsWith("UPDATE_NEXT:")) {
+                        int newNextPort = Integer.parseInt(message.split(":")[1]);
+                        node.setNextPort(newNextPort);
+                        System.out.println("→ Updated NEXT port to " + newNextPort);
+                        return;
+                    }
+
+                    if (message.startsWith("UPDATE_PREV:")) {
+                        int newPrevPort = Integer.parseInt(message.split(":")[1]);
+                        node.setPreviousPort(newPrevPort);
+                        System.out.println("→ Updated PREVIOUS port to " + newPrevPort);
+                        return;
+                    }
                     String[] parts = message.trim().split(",");
 
                     System.out.println("WE KOMEN NET VOOR DE PART SPLITSING!!!!!!!!!!!!!!!!!1");
@@ -214,9 +232,6 @@ public class NodeApp {
                 s.getOutputStream().write("PING".getBytes());
             } catch (IOException ioe) {
                 System.err.println("Failure detected on port " + failedPort);
-                System.err.println("Detected failure, reporting failed node port: " + failedPort);
-
-                FailureReporter.reportFailure(failedPort);
                 int[] nb = getUpdatedNeighborsFromNamingServer(failedPort);
                 node.setPreviousPort(nb[0]);
                 node.setNextPort(nb[1]);
@@ -256,28 +271,79 @@ public class NodeApp {
 
     public static void shutdownGracefully(Node node) {
         try {
+            // Call Naming Server to get previous/next neighbor info
             String shutdownUrl = NAMING_BASE + "/shutdown?port=" + node.getPort();
             URL url = new URL(shutdownUrl);
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
 
             if (con.getResponseCode() == 200) {
+                // Read neighbors info (prevPort, nextPort)
                 Map<String, Integer> neighbors = new ObjectMapper().readValue(con.getInputStream(), Map.class);
                 int prevPort = neighbors.get("prevPort");
                 int nextPort = neighbors.get("nextPort");
-                System.out.printf("🔁 Updated neighbors after shutdown: prevPort=%d, nextPort=%d%n", prevPort, nextPort);
+
+                // Print neighbors' info (for debugging)
+                System.out.printf("Updated neighbors after shutdown: prevPort=%d, nextPort=%d%n", prevPort, nextPort);
+
+                // Notify previous node to update its nextID (using unicast)
+                notifyPreviousNode(prevPort, nextPort);
+
+                // Notify next node to update its previousID (using unicast)
+                notifyNextNode(nextPort, prevPort);
+
+                // Transfer files to the previous node (if any)
+                transferFiles(node);
+
+                // After file transfer and neighbor updates, shutdown gracefully
+                System.out.println("Node " + node.getName() + " shut down gracefully.");
+                System.exit(0);  // Exit JVM after completing the shutdown tasks
             } else {
                 System.err.println("Shutdown failed with status: " + con.getResponseCode());
             }
-
-            System.out.println("✅ Node " + node.getName() + " on port " + node.getPort() + " shut down gracefully.");
-            System.exit(0);
-
         } catch (Exception e) {
             e.printStackTrace();
-            System.exit(1);
+            System.exit(1);  // Exit JVM with error status
         }
     }
+
+    // Notify the previous node to update its nextID
+    private static void notifyPreviousNode(int prevPort, int newNextPort) {
+        sendUnicast(prevPort, "UPDATE_NEXT:" + newNextPort);
+    }
+
+    // Notify the next node to update its previousID
+    private static void notifyNextNode(int nextPort, int newPrevPort) {
+        sendUnicast(nextPort, "UPDATE_PREV:" + newPrevPort);
+    }
+
+    // Send unicast messages to notify neighbors
+    private static void sendUnicast(int targetPort, String message) {
+        try {
+            byte[] buf = message.getBytes();
+            InetAddress address = InetAddress.getByName("localhost");
+            DatagramPacket packet = new DatagramPacket(buf, buf.length, address, targetPort);
+            DatagramSocket socket = new DatagramSocket();
+            socket.send(packet);
+            socket.close();
+            System.out.println("Unicast sent to " + targetPort + ": " + message);
+        } catch (Exception e) {
+            System.err.println("Failed to send unicast to port " + targetPort);
+        }
+    }
+
+    // Transfer replicated files to the previous node
+    private static void transferFiles(Node node) {
+        List<File> replicatedFiles = node.getReplicatedFileObjects();
+        for (File file : replicatedFiles) {
+            int prevPort = node.getPreviousPort();  // Get previous node port
+            FileSender.sendFile(file, prevPort);    // Transfer each replicated file
+        }
+
+        // Notify owners about the shutdown and transfer files if needed
+        System.out.println("Transferring files to previous node before shutdown.");
+    }
+
 
     public static class NeighborResponse {
         private int previous, next;

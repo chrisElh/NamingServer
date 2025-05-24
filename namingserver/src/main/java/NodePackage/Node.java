@@ -198,7 +198,9 @@ public class Node {
     }
 
     // Other existing methods (name, port, etc.) remain unchanged
-
+    public List<File> getReplicatedFileObjects() {
+        return replicatedFileObjects;  // Return the list of replicated files
+    }
 
 
 }
