@@ -1,5 +1,6 @@
 package NodePackage;
 
+import Namingserver.namingserver.controller.communication.ServerUnicastSender;
 import NodePackage.communication.*;
 import Functions.HashingFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -284,7 +285,33 @@ public class NodeApp {
                 // STEP 2: Transfer files BEFORE calling /shutdown
                 notifyPreviousNode(prevPort, nextPort);
                 notifyNextNode(nextPort, prevPort);
-                transferFiles(node); // ✅ Replica log still valid here
+                transferFiles(node); // Replica log still valid here
+
+                // PHASE 3: Notify owners of local files to replicate if needed
+// PHASE 3: Notify owners to replicate local files if needed
+                for (String filename : node.getLocalFileNames()) {
+                    int shuttingDownPort = node.getPort();
+                    int replicaPort = getReplicaForFileFromNamingServer(filename, shuttingDownPort);
+
+                    if (replicaPort > 0 && replicaPort != shuttingDownPort) {
+                        int newReplicaPort = findNewReplicaTarget(replicaPort, filename);
+
+                        if (newReplicaPort > 0 && newReplicaPort != replicaPort && newReplicaPort != shuttingDownPort) {
+                            // Use existing ServerUnicastSender method to send replication instruction
+                            ServerUnicastSender.sendReplicaInstruction(
+                                    String.valueOf(replicaPort),
+                                    filename,
+                                    String.valueOf(newReplicaPort)
+                            );
+
+                            // Update replica log on Naming Server (already implemented)
+                            updateReplicaLogOnShutdown(filename, replicaPort, newReplicaPort);
+                        }
+                    }
+                }
+
+
+
 
                 // STEP 3: Call shutdown (removes node from Naming Server)
                 String shutdownUrl = NAMING_BASE + "/shutdown?port=" + node.getPort();
@@ -342,7 +369,7 @@ public class NodeApp {
 
         System.out.println("DEBUG: Number of replicated files = " + node.getReplicatedFileObjects().size());
 
-
+        // We loop over all the replicated files in this node and send them to the previous node.
         for (File file : replicatedFiles) {
             String fileName = file.getName();
             int targetPort = findNewReplicaTarget(node.getPreviousPort(), fileName);
@@ -428,6 +455,32 @@ public class NodeApp {
             System.err.println("❌ Error updating replica log: " + e.getMessage());
         }
     }
+
+
+
+    // Call Naming Server to get replica port for a file excluding the shutting down node
+    private static int getReplicaForFileFromNamingServer(String filename, int shuttingDownPort) {
+        try {
+            String url = NAMING_BASE + "/getReplicaForFile?filename=" + filename + "&shuttingDownPort=" + shuttingDownPort;
+            HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+            con.setRequestMethod("GET");
+
+            if (con.getResponseCode() == 200) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                String response = in.readLine();
+                in.close();
+
+                if (response != null && !response.equals("null") && !response.isEmpty()) {
+                    return Integer.parseInt(response);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error fetching replica for file " + filename + ": " + e.getMessage());
+        }
+        return -1;
+    }
+
+
 
 
     public static class NeighborResponse {

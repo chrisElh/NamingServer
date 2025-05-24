@@ -464,6 +464,30 @@ public class ServerController {
         return ResponseEntity.ok("Replica log updated");
     }
 
+    @GetMapping("/getReplicaForFile")
+    public ResponseEntity<Integer> getReplicaForFile(
+            @RequestParam String filename,
+            @RequestParam int shuttingDownPort) {
+
+        int shuttingDownHash = nodeMap.entrySet().stream()
+                .filter(e -> e.getValue().equals(shuttingDownPort))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(-1);
+
+        for (Map.Entry<Integer, List<String>> entry : replicas.entrySet()) {
+            int nodeHash = entry.getKey();
+            if (nodeHash == shuttingDownHash) continue; // skip shutting down node
+            if (entry.getValue().contains(filename)) {
+                Integer port = nodeMap.get(nodeHash);
+                if (port != null) {
+                    return ResponseEntity.ok(port);
+                }
+            }
+        }
+        return ResponseEntity.ok(null);
+    }
+
 //
 //    // Placeholder
 //    private void saveNodeMapToDisk() {

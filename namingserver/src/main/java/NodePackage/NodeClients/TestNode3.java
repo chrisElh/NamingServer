@@ -25,8 +25,8 @@ public class TestNode3 {
         System.out.println(node.getLocalFileNames());
 //        Node node = app.createAndAnnounceNewNode("TestNode2", 2000);
 
-        Thread.sleep(45000);
+//        Thread.sleep(45000);
 //
-        NodeApp.shutdownGracefully(node);
+//        NodeApp.shutdownGracefully(node);
     }
 }
