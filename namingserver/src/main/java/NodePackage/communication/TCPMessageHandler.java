@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * Luistert op een TCP-poort en behandelt inkomende berichten.
- * Stuurt "PING" door naar NodeApp en "STORE_FILE" door naar FileReceiver.
+ * Ondersteunt pings, file storage en het opvragen van de filelijst met locking + ownership.
  */
 public class TCPMessageHandler implements Runnable {
 
@@ -36,7 +36,7 @@ public class TCPMessageHandler implements Runnable {
                 // Wacht op inkomende verbinding
                 Socket socket = serverSocket.accept();
 
-                // Verwerk elke verbinding asynchroon
+                // Verwerk elke verbinding in een aparte thread
                 new Thread(() -> handle(socket)).start();
 
             } catch (IOException e) {
@@ -46,7 +46,7 @@ public class TCPMessageHandler implements Runnable {
     }
 
     /**
-     * Leest de eerste regel van de inkomende verbinding en stuurt door.
+     * Verwerkt inkomend TCP-verzoek op basis van het eerste commando in de stream.
      */
     private void handle(Socket socket) {
         try (
@@ -60,30 +60,34 @@ public class TCPMessageHandler implements Runnable {
                 return;
             }
 
+            // Ping wordt vaak gebruikt voor liveness checks
             if (header.startsWith("PING")) {
                 System.out.println("✅ Ping received from " + socket.getRemoteSocketAddress());
-               // app.decideNeighbors(node); // of andere pinglogica
                 return;
             }
 
+            // Bestanden worden opgeslagen via deze instructie
             if (header.startsWith("STORE_FILE:")) {
                 String fileName = header.substring("STORE_FILE:".length()).trim();
                 fileReceiver.handleFile(socket, fileName, input);
                 return;
             }
 
+            // Sync-agent vraagt de filelijst op inclusief locked-status en owner
             if (header.startsWith("GET_FILELIST")) {
                 PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
                 List<SyncAgent.FileEntry> entries = node.getSyncAgent().getFileList();
 
                 for (SyncAgent.FileEntry entry : entries) {
-                    writer.println(entry.filename + ":" + entry.locked);
+                    // nieuwe formaat: <filename>:<locked>:<owner>
+                    writer.println(entry.filename + ":" + entry.locked + ":" + entry.owner);
                 }
-                writer.println("END");
+
+                writer.println("END"); // Signaal dat alle entries verzonden zijn
                 return;
             }
 
-
+            // Onbekend commando
             System.err.println("❌ Unknown TCP header: " + header);
 
         } catch (IOException e) {

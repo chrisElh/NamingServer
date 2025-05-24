@@ -49,11 +49,13 @@ public class NodeApp {
             startUnicastReceiver(node);
             MulticastSender.sendMulticast(name, unicastPort, node.getLocalFileNames());
             new Thread(new MulticastReceiver(node, this)).start();
-            new Thread(new FileWatcher(node, dirPathLocal)).start();
-
             SyncAgent agent = new SyncAgent(node);
             node.setSyncAgent(agent);
             new Thread(agent).start();
+
+            new Thread(new FileWatcher(node, dirPathLocal, agent)).start();
+
+
 
 
 

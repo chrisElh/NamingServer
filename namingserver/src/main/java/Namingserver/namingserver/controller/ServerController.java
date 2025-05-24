@@ -117,6 +117,64 @@ public class ServerController {
         return nodeMap.size();
     }
 
+    @PostMapping("/lock")
+    public String lockFile(@RequestParam String filename, @RequestParam String requesterName) {
+        Integer ownerHash = fileToNodeMap.get(filename);
+        if (ownerHash == null) return "❌ File not found.";
+
+        int requesterHash = HashingFunction.hashNodeName(requesterName);
+        if (requesterHash != ownerHash) return "🚫 Only the owner can lock the file.";
+
+        // Lock instructie sturen naar eigenaar (requester)
+        int ownerPort = nodeMap.get(ownerHash);
+        ServerUnicastSender.sendLockInstruction(String.valueOf(ownerPort), filename, true);  // true = lock
+        System.out.println("🔐 Lock instructie gestuurd naar eigenaar op port " + ownerPort);
+
+        // Lock instructie sturen naar alle replica-nodes
+        List<Integer> replicaHashes = replicas.entrySet().stream()
+                .filter(entry -> entry.getValue().contains(filename))
+                .map(Map.Entry::getKey)
+                .toList();
+
+        for (Integer replicaHash : replicaHashes) {
+            if (replicaHash == ownerHash) continue; // skip als replica toevallig owner is
+            int replicaPort = nodeMap.get(replicaHash);
+            ServerUnicastSender.sendLockInstruction(String.valueOf(replicaPort), filename, true);
+            System.out.println("🔐 Lock instructie gestuurd naar replica op port " + replicaPort);
+        }
+
+        return "✅ Lock instructies verzonden voor bestand: " + filename;
+    }
+
+    @PostMapping("/unlock")
+    public String unlockFile(@RequestParam String filename, @RequestParam String requesterName) {
+        Integer ownerHash = fileToNodeMap.get(filename);
+        if (ownerHash == null) return "❌ File not found.";
+
+        int requesterHash = HashingFunction.hashNodeName(requesterName);
+        if (requesterHash != ownerHash) return "🚫 Only the owner can unlock the file.";
+
+        // Unlock instructie naar owner
+        int ownerPort = nodeMap.get(ownerHash);
+        ServerUnicastSender.sendLockInstruction(String.valueOf(ownerPort), filename, false); // false = unlock
+        System.out.println("🔓 Unlock instructie gestuurd naar eigenaar op port " + ownerPort);
+
+        // Unlock instructie naar replicas
+        List<Integer> replicaHashes = replicas.entrySet().stream()
+                .filter(entry -> entry.getValue().contains(filename))
+                .map(Map.Entry::getKey)
+                .toList();
+
+        for (Integer replicaHash : replicaHashes) {
+            if (replicaHash == ownerHash) continue;
+            int replicaPort = nodeMap.get(replicaHash);
+            ServerUnicastSender.sendLockInstruction(String.valueOf(replicaPort), filename, false);
+            System.out.println("🔓 Unlock instructie gestuurd naar replica op port " + replicaPort);
+        }
+
+        return "✅ Unlock instructies verzonden voor bestand: " + filename;
+    }
+
     @PostMapping("/addNode")
     public String addNode(@RequestBody Node node) {
         // Compute a consistent hash for the node's name
