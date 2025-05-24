@@ -1,5 +1,6 @@
 package NodePackage;
-//trail
+
+import Namingserver.namingserver.controller.communication.ServerUnicastSender;
 import NodePackage.communication.*;
 import Functions.HashingFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -271,41 +272,73 @@ public class NodeApp {
 
     public static void shutdownGracefully(Node node) {
         try {
-            // Call Naming Server to get previous/next neighbor info
-            String shutdownUrl = NAMING_BASE + "/shutdown?port=" + node.getPort();
-            URL url = new URL(shutdownUrl);
+            // STEP 1: First, get neighbors WITHOUT removing the node yet
+            String getNeighborUrl = NAMING_BASE + "/neighbors?port=" + node.getPort();
+            URL url = new URL(getNeighborUrl);
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
 
             if (con.getResponseCode() == 200) {
-                // Read neighbors info (prevPort, nextPort)
                 Map<String, Integer> neighbors = new ObjectMapper().readValue(con.getInputStream(), Map.class);
-                int prevPort = neighbors.get("prevPort");
-                int nextPort = neighbors.get("nextPort");
+                int prevPort = neighbors.get("previous");
+                int nextPort = neighbors.get("next");
 
-                // Print neighbors' info (for debugging)
-                System.out.printf("Updated neighbors after shutdown: prevPort=%d, nextPort=%d%n", prevPort, nextPort);
+                System.out.printf("🔗 Shutdown: Neighbors are prevPort=%d, nextPort=%d%n", prevPort, nextPort);
 
-                // Notify previous node to update its nextID (using unicast)
+                // STEP 2: Transfer files BEFORE calling /shutdown
                 notifyPreviousNode(prevPort, nextPort);
-
-                // Notify next node to update its previousID (using unicast)
                 notifyNextNode(nextPort, prevPort);
+                transferFiles(node); // Replica log still valid here
 
-                // Transfer files to the previous node (if any)
-                transferFiles(node);
+                // PHASE 3: Notify owners of local files to replicate if needed
+// PHASE 3: Notify owners to replicate local files if needed
+                for (String filename : node.getLocalFileNames()) {
+                    int shuttingDownPort = node.getPort();
+                    int replicaPort = getReplicaForFileFromNamingServer(filename, shuttingDownPort);
 
-                // After file transfer and neighbor updates, shutdown gracefully
-                System.out.println("Node " + node.getName() + " shut down gracefully.");
-                System.exit(0);  // Exit JVM after completing the shutdown tasks
+                    if (replicaPort > 0 && replicaPort != shuttingDownPort) {
+                        int newReplicaPort = findNewReplicaTarget(replicaPort, filename);
+
+                        if (newReplicaPort > 0 && newReplicaPort != replicaPort && newReplicaPort != shuttingDownPort) {
+                            // Use existing ServerUnicastSender method to send replication instruction
+                            ServerUnicastSender.sendReplicaInstruction(
+                                    String.valueOf(replicaPort),
+                                    filename,
+                                    String.valueOf(newReplicaPort)
+                            );
+
+                            // Update replica log on Naming Server (already implemented)
+                            updateReplicaLogOnShutdown(filename, replicaPort, newReplicaPort);
+                        }
+                    }
+                }
+
+
+
+
+                // STEP 3: Call shutdown (removes node from Naming Server)
+                String shutdownUrl = NAMING_BASE + "/shutdown?port=" + node.getPort();
+                con = (HttpURLConnection) new URL(shutdownUrl).openConnection();
+                con.setRequestMethod("GET");
+
+                if (con.getResponseCode() == 200) {
+                    System.out.println("✅ Shutdown confirmed by Naming Server.");
+                    System.out.println("Node " + node.getName() + " shut down gracefully.");
+                    System.exit(0);
+                } else {
+                    System.err.println("❌ Shutdown failed with status: " + con.getResponseCode());
+                }
+
             } else {
-                System.err.println("Shutdown failed with status: " + con.getResponseCode());
+                System.err.println("❌ Failed to get neighbors for shutdown. Status: " + con.getResponseCode());
             }
+
         } catch (Exception e) {
             e.printStackTrace();
-            System.exit(1);  // Exit JVM with error status
+            System.exit(1);
         }
     }
+
 
     // Notify the previous node to update its nextID
     private static void notifyPreviousNode(int prevPort, int newNextPort) {
@@ -335,14 +368,122 @@ public class NodeApp {
     // Transfer replicated files to the previous node
     private static void transferFiles(Node node) {
         List<File> replicatedFiles = node.getReplicatedFileObjects();
+        System.out.println("DEBUG: Shutdown file transfer triggered.");
+
+        System.out.println("DEBUG: Number of replicated files = " + node.getReplicatedFileObjects().size());
+
+        // We loop over all the replicated files in this node and send them to the previous node.
         for (File file : replicatedFiles) {
-            int prevPort = node.getPreviousPort();  // Get previous node port
-            FileSender.sendFile(file, prevPort);    // Transfer each replicated file
+            String fileName = file.getName();
+            int targetPort = findNewReplicaTarget(node.getPreviousPort(), fileName);
+
+            if (targetPort == -1) {
+                System.err.println("❌ No valid replica target found for " + fileName);
+                continue;
+            }
+
+            FileSender.sendFile(file, targetPort);
+            System.out.printf("📦 Replicated file '%s' sent to port %d%n", fileName, targetPort);
+
+            updateReplicaLogOnShutdown(file.getName(), node.getPort(), targetPort);
+
         }
 
-        // Notify owners about the shutdown and transfer files if needed
-        System.out.println("Transferring files to previous node before shutdown.");
+        System.out.println("✅ All replicated files transferred before shutdown.");
     }
+
+    private static int findNewReplicaTarget(int startingPort, String filename) {
+        try {
+            // Ask the Naming Server if this node already has the file locally
+            String urlStr = NAMING_BASE + "/getLocalFiles?nodePort=" + startingPort;
+            URL url = new URL(urlStr);
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            String response = in.readLine();
+            in.close();
+
+            if (response != null && response.contains(filename)) {
+                System.out.println("🔁 File '" + filename + "' already exists at port " + startingPort);
+                int nextTry = getPreviousPort(startingPort);
+                System.out.println("↪️ Trying previous-of-previous node at port: " + nextTry);
+                return findNewReplicaTarget(nextTry, filename); // Recursive search
+            }
+
+            return startingPort;
+
+        } catch (Exception e) {
+            System.err.println("⚠️ Error in finding replica target for " + filename + ": " + e.getMessage());
+            return -1;
+        }
+    }
+
+    private static int getPreviousPort(int port) {
+        try {
+            URL url = new URL(NAMING_BASE + "/neighbors?port=" + port);
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            if (con.getResponseCode() == 200) {
+                ObjectMapper mapper = new ObjectMapper();
+                Map<String, Integer> result = mapper.readValue(con.getInputStream(), Map.class);
+                return result.get("previous");  // Use the correct JSON key
+            }
+
+        } catch (Exception e) {
+            System.err.println("⚠️ Error fetching previous port for port " + port + ": " + e.getMessage());
+        }
+
+        return -1;
+    }
+
+    private static void updateReplicaLogOnShutdown(String fileName, int oldPort, int newPort) {
+        try {
+            String url = NAMING_BASE + "/updateReplicaAfterShutdown?file=" + fileName
+                    + "&oldPort=" + oldPort + "&newPort=" + newPort;
+
+            HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+            con.setRequestMethod("POST");
+
+            int responseCode = con.getResponseCode();
+            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" + responseCode);
+            if (responseCode == 200) {
+                System.out.println("✅ Naming Server replica log updated for file: " + fileName);
+            } else {
+                System.err.println("⚠️ Failed to update replica log for file: " + fileName);
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Error updating replica log: " + e.getMessage());
+        }
+    }
+
+
+
+    // Call Naming Server to get replica port for a file excluding the shutting down node
+    private static int getReplicaForFileFromNamingServer(String filename, int shuttingDownPort) {
+        try {
+            String url = NAMING_BASE + "/getReplicaForFile?filename=" + filename + "&shuttingDownPort=" + shuttingDownPort;
+            HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+            con.setRequestMethod("GET");
+
+            if (con.getResponseCode() == 200) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                String response = in.readLine();
+                in.close();
+
+                if (response != null && !response.equals("null") && !response.isEmpty()) {
+                    return Integer.parseInt(response);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error fetching replica for file " + filename + ": " + e.getMessage());
+        }
+        return -1;
+    }
+
+
 
 
     public static class NeighborResponse {

@@ -4,6 +4,7 @@ import Namingserver.namingserver.controller.communication.ServerUnicastSender;
 import NodePackage.Node;
 import Functions.HashingFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
@@ -275,11 +276,27 @@ public class ServerController {
 
 
     // Returns local files owned by a specific node
+//    @GetMapping("/getLocalFiles")
+//    public List<String> getLocalFiles(@RequestParam String nodeName) {
+//        int hash = HashingFunction.hashNodeName(nodeName);
+//        return localFiles.getOrDefault(hash, Collections.emptyList());
+//    }
+
+
     @GetMapping("/getLocalFiles")
-    public List<String> getLocalFiles(@RequestParam String nodeName) {
-        int hash = HashingFunction.hashNodeName(nodeName);
-        return localFiles.getOrDefault(hash, Collections.emptyList());
+    public List<String> getLocalFiles(@RequestParam int nodePort) {
+        Optional<Map.Entry<Integer, Integer>> entry = nodeMap.entrySet().stream()
+                .filter(e -> e.getValue() == nodePort)
+                .findFirst();
+
+        if (entry.isPresent()) {
+            int hash = entry.get().getKey();
+            return localFiles.getOrDefault(hash, Collections.emptyList());
+        }
+
+        return Collections.emptyList();
     }
+
 
     // Returns replicated files for a specific node
     @GetMapping("/getReplicas")
@@ -398,6 +415,77 @@ public class ServerController {
                 "prevPort", prevPort,
                 "nextPort", nextPort
         );
+    }
+
+    @PostMapping("/updateReplicaAfterShutdown")
+    public ResponseEntity<String> updateReplicaAfterShutdown(
+            @RequestParam String file,
+            @RequestParam int oldPort,
+            @RequestParam int newPort) {
+
+        // Step 1: Get the old node hash
+        Optional<Map.Entry<Integer, Integer>> oldEntry = nodeMap.entrySet().stream()
+               // .filter(e -> e.getValue() == oldPort)
+                .filter(e -> e.getValue().equals(oldPort))
+                .findFirst();
+
+        if (oldEntry.isEmpty()) {
+            return ResponseEntity.status(404).body("Old node not found in nodeMap");
+        }
+
+        int oldHash = oldEntry.get().getKey();
+
+        // Step 2: Remove the file from old node's replica list
+        replicas.getOrDefault(oldHash, new ArrayList<>()).remove(file);
+
+        // Step 3: Get the new node hash
+        Optional<Map.Entry<Integer, Integer>> newEntry = nodeMap.entrySet().stream()
+                .filter(e -> e.getValue() == newPort)
+                .findFirst();
+
+        if (newEntry.isEmpty()) {
+            return ResponseEntity.status(404).body("New node not found in nodeMap");
+        }
+
+        int newHash = newEntry.get().getKey();
+
+        // Step 4: Add the file to new node's replica list
+        replicas.computeIfAbsent(newHash, k -> new ArrayList<>());
+
+        if (!replicas.get(newHash).contains(file)) {
+            replicas.get(newHash).add(file);
+        }
+
+        // ✅ Confirm in logs
+        System.out.println("📝 Replica reassignment completed for file '" + file + "'");
+        System.out.println("   Removed from node hash: " + oldHash + ", port: " + oldPort);
+        System.out.println("   Added to node hash: " + newHash + ", port: " + newPort);
+
+        return ResponseEntity.ok("Replica log updated");
+    }
+
+    @GetMapping("/getReplicaForFile")
+    public ResponseEntity<Integer> getReplicaForFile(
+            @RequestParam String filename,
+            @RequestParam int shuttingDownPort) {
+
+        int shuttingDownHash = nodeMap.entrySet().stream()
+                .filter(e -> e.getValue().equals(shuttingDownPort))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(-1);
+
+        for (Map.Entry<Integer, List<String>> entry : replicas.entrySet()) {
+            int nodeHash = entry.getKey();
+            if (nodeHash == shuttingDownHash) continue; // skip shutting down node
+            if (entry.getValue().contains(filename)) {
+                Integer port = nodeMap.get(nodeHash);
+                if (port != null) {
+                    return ResponseEntity.ok(port);
+                }
+            }
+        }
+        return ResponseEntity.ok(null);
     }
 
 //
