@@ -1,11 +1,13 @@
 package NodePackage.communication;
 
+import NodePackage.Agent.SyncAgent;
 import NodePackage.Node;
 import NodePackage.NodeApp;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
 
 /**
  * Luistert op een TCP-poort en behandelt inkomende berichten.
@@ -69,6 +71,18 @@ public class TCPMessageHandler implements Runnable {
                 fileReceiver.handleFile(socket, fileName, input);
                 return;
             }
+
+            if (header.startsWith("GET_FILELIST")) {
+                PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+                List<SyncAgent.FileEntry> entries = node.getSyncAgent().getFileList();
+
+                for (SyncAgent.FileEntry entry : entries) {
+                    writer.println(entry.filename + ":" + entry.locked);
+                }
+                writer.println("END");
+                return;
+            }
+
 
             System.err.println("❌ Unknown TCP header: " + header);
 

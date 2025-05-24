@@ -1,5 +1,6 @@
 package NodePackage;
 
+import NodePackage.Agent.SyncAgent;
 import NodePackage.communication.*;
 import Functions.HashingFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +36,10 @@ public class NodeApp {
             // Maak file receiver aan (zonder eigen socket)
             FileReceiver fileReceiver = new FileReceiver(dirPathReplica, node);
 
+
+
+
+
             // Start TCP handler die alles verwerkt
             new Thread(new TCPMessageHandler(sharedSocket, node, this, fileReceiver)).start();
 
@@ -43,6 +48,12 @@ public class NodeApp {
             MulticastSender.sendMulticast(name, unicastPort, node.getLocalFileNames());
             new Thread(new MulticastReceiver(node, this)).start();
             new Thread(new FileWatcher(node, dirPathLocal)).start();
+
+            SyncAgent agent = new SyncAgent(node);
+            node.setSyncAgent(agent);
+            new Thread(agent).start();
+
+
 
 
         } catch (Exception e) {
@@ -76,11 +87,9 @@ public class NodeApp {
                 } else {
                     String[] parts = message.trim().split(",");
 
-                    System.out.println("WE KOMEN NET VOOR DE PART SPLITSING!!!!!!!!!!!!!!!!!1");
 
                     // ⬅️ Alleen totaal aantal nodes (bv. "2")
                     if (parts.length == 1) {
-                        System.out.println("PAAAAART1!!!!!!!!!!!!!11");
                         int total = Integer.parseInt(parts[0]);
 
                         // Alleen node → zichzelf instellen als eigen neighbor
@@ -96,7 +105,6 @@ public class NodeApp {
                     }
 
                     else if (parts.length == 2) {
-                        System.out.println("PAAAAART2222!!!!!!!!!!!!!11");
                         int sender = Integer.parseInt(parts[0]);
                         int other = Integer.parseInt(parts[1]);
                         neighborCandidates.add(new int[]{sender, other});

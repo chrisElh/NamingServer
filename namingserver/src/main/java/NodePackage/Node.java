@@ -1,5 +1,7 @@
 package NodePackage;
 
+import NodePackage.Agent.SyncAgent;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +17,8 @@ public class Node {
 
     // Optional: total number of nodes in the network (not used in logic)
     private int totalNodes = 0;
+
+    private SyncAgent syncAgent;
 
 
     //Fields needed for failure:
@@ -91,6 +95,14 @@ public class Node {
 
     public void setTotalNodes(int totalNodes) {
         this.totalNodes = totalNodes;
+    }
+
+    public void setSyncAgent(SyncAgent syncAgent) {
+        this.syncAgent = syncAgent;
+    }
+
+    public SyncAgent getSyncAgent() {
+        return syncAgent;
     }
 
     // Print current status of the node
