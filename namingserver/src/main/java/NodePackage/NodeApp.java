@@ -25,6 +25,8 @@ public class NodeApp {
 
     public Node createAndAnnounceNewNode(String name, int unicastPort, String dirPathLocal, String dirPathReplica) {
         Node node = new Node(name, unicastPort);
+        node.setDirPathLocal(dirPathLocal);
+        node.setDirPathReplica(dirPathReplica);
         node.loadLocalFilesFromDirectory(dirPathLocal);
         System.out.println("From NodeApp: " + node.getLocalFileNames());
 

@@ -2,10 +2,7 @@ package NodePackage.Agent;
 
 import NodePackage.Node;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.io.Serializable;
+import java.io.*;
 import java.net.Socket;
 import java.util.*;
 
@@ -37,7 +34,7 @@ public class SyncAgent implements Runnable, Serializable {
             try {
                 System.out.println("🔁 SyncAgent uitvoer op node " + node.getName());
 
-                // voeg lokale bestanden toe
+                // Voeg lokale bestanden toe aan fileList als ze nog niet bestaan
                 List<String> localFiles = node.getLocalFileNames();
                 for (String file : localFiles) {
                     if (fileList.stream().noneMatch(e -> e.filename.equals(file))) {
@@ -46,7 +43,7 @@ public class SyncAgent implements Runnable, Serializable {
                     }
                 }
 
-                // sync met volgende node (alleen als nextPort > 0)
+                // Synchroniseer met volgende node
                 int nextPort = node.getNextPort();
                 if (nextPort > 0) {
                     try (
@@ -55,33 +52,47 @@ public class SyncAgent implements Runnable, Serializable {
                             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))
                     ) {
                         out.println("GET_FILELIST");
+
+                        List<FileEntry> neighborFiles = new ArrayList<>();
                         String line;
                         while ((line = in.readLine()) != null && !line.equals("END")) {
                             String[] parts = line.split(":");
                             if (parts.length != 2) continue;
-
                             String filename = parts[0];
                             boolean locked = Boolean.parseBoolean(parts[1]);
+                            neighborFiles.add(new FileEntry(filename, locked));
+                        }
 
-                            boolean exists = fileList.stream().anyMatch(e -> e.filename.equals(filename));
-                            if (!exists) {
-                                fileList.add(new FileEntry(filename, locked));
-                                System.out.println("➕ Gesynchroniseerd bestand van next: " + filename + " (locked=" + locked + ")");
+                        // Voeg toe of update bestaande
+                        for (FileEntry nf : neighborFiles) {
+                            Optional<FileEntry> existing = fileList.stream().filter(e -> e.filename.equals(nf.filename)).findFirst();
+                            if (existing.isEmpty()) {
+                                fileList.add(nf);
+                                System.out.println("➕ Nieuw bestand van neighbor: " + nf.filename + " (locked=" + nf.locked + ")");
+                            } else if (existing.get().locked != nf.locked) {
+                                existing.get().locked = nf.locked;
+                                System.out.println("🔒 Lock-status bijgewerkt: " + nf.filename + " (locked=" + nf.locked + ")");
                             }
                         }
+
+                        // Verwijder bestanden die niet meer bij neighbor zitten
+                        fileList.removeIf(entry ->
+                                !localFiles.contains(entry.filename) &&
+                                        neighborFiles.stream().noneMatch(nf -> nf.filename.equals(entry.filename))
+                        );
                     } catch (Exception e) {
                         System.err.println("❌ SyncAgent TCP-connectie met next-node gefaald: " + e.getMessage());
                     }
                 }
 
-                // wacht 5 seconden voor volgende sync
                 Thread.sleep(5000);
-
             } catch (InterruptedException e) {
-                break; // stopt de thread netjes bij interrupt
+                break;
             }
         }
     }
+
+
 
 
     public List<FileEntry> getFileList() {

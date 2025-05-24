@@ -15,6 +15,9 @@ public class Node {
     private int previousID = -1;
     private int nextID = -1;
 
+    private String dirPathLocal;
+    private String dirPathReplica;
+
     // Optional: total number of nodes in the network (not used in logic)
     private int totalNodes = 0;
 
@@ -104,6 +107,22 @@ public class Node {
     public SyncAgent getSyncAgent() {
         return syncAgent;
     }
+
+    public void setDirPathLocal(String dirPathLocal) {
+        this.dirPathLocal = dirPathLocal;
+    }
+
+    public String getDirPathLocal() {
+        return dirPathLocal;
+    }
+
+    public void setDirPathReplica(String dirPathReplica) {
+        this.dirPathReplica = dirPathReplica;
+    }
+    public String getDirPathReplica() {
+        return dirPathReplica;
+    }
+
 
     // Print current status of the node
     public void printStatus() {
