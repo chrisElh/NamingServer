@@ -1,6 +1,7 @@
 package gui;
 
 import NodePackage.Node;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.event.ActionEvent;
@@ -515,6 +516,59 @@ public class MainController {
         return map;
     }
 
+// Removing Node
+@FXML
+private void handleShutdownNode() {
+    NodeDisplay selected = nodeTable.getSelectionModel().getSelectedItem();
+    if (selected == null) {
+        showAlert("Please select a node to shut down.");
+        return;
+    }
+
+    // Run shutdown logic in background thread
+    new Thread(() -> {
+        try {
+            URL url = new URL("http://localhost:8080/removeNode");
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("POST");
+            con.setDoOutput(true);
+            con.setRequestProperty("Content-Type", "application/json");
+
+            // Optional: Timeout settings to avoid hanging
+            con.setConnectTimeout(5000);
+            con.setReadTimeout(5000);
+
+            String jsonBody = String.format("""
+                {
+                    "name": "%s",
+                    "port": %d
+                }
+                """, selected.getName(), selected.getPort());
+
+            try (OutputStream os = con.getOutputStream()) {
+                os.write(jsonBody.getBytes());
+            }
+
+            int code = con.getResponseCode();
+            if (code == 200) {
+                Platform.runLater(() -> {
+                    showAlert("Node shut down: " + selected.getName());
+                    handleFetchNodes();  // Refresh node list on GUI
+                });
+            } else {
+                Platform.runLater(() ->
+                        showAlert("Failed to shut down node (HTTP " + code + ")")
+                );
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Platform.runLater(() ->
+                    showAlert("Error during shutdown: " + e.getMessage())
+            );
+        }
+    }).start();
+}
 
 
 }

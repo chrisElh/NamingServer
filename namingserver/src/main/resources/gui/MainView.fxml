@@ -16,6 +16,8 @@
                 <Label text="File Count:" />
                 <ChoiceBox fx:id="fileCountChoiceBox" />
                 <Button text="Add Node" onAction="#handleAddNode" />
+                <Button fx:id="shutdownButton" text="Shutdown Node" onAction="#handleShutdownNode"/>
+
             </HBox>
 
             <!-- Node Files Section -->

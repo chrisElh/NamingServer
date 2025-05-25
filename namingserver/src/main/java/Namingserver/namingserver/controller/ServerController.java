@@ -220,22 +220,18 @@ public class ServerController {
 
 
 
-    // Removes a node and its associated data
     @PostMapping("/removeNode")
-    public String removeNode(@RequestBody Node node) {
-        int hash = HashingFunction.hashNodeName(node.getName());
+    public ResponseEntity<String> removeNode(@RequestBody Node node) {
+        new Thread(() -> {
+            try {
+                Thread.sleep(500); // small delay to allow GUI to receive response
+                NodeApp.shutdownGracefully(node); // shuts down the node
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
 
-        if (!nodeMap.containsKey(hash))  {
-            return "Node not found for removal: " + node.getName();
-        }
-
-        nodeMap.remove(hash);
-        localFiles.remove(hash);
-        replicas.remove(hash);
-        fileToNodeMap.values().removeIf(value -> value == hash);
-        saveNodeMapToDisk();
-
-        return "Node removed: " + node.getName();
+        return ResponseEntity.ok("Node shutdown initiated.");
     }
 
 

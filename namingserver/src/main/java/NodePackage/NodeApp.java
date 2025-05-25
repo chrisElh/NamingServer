@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.io.File;
 
 public class NodeApp {
     private static final ScheduledExecutorService scheduler =
@@ -328,6 +329,7 @@ public class NodeApp {
 
 
                 // STEP 3: Call shutdown (removes node from Naming Server)
+//                Thread.sleep(5000);
                 String shutdownUrl = NAMING_BASE + "/shutdown?port=" + node.getPort();
                 con = (HttpURLConnection) new URL(shutdownUrl).openConnection();
                 con.setRequestMethod("GET");
@@ -346,11 +348,11 @@ public class NodeApp {
 
 
             System.out.println("✅ Node " + node.getName() + " on port " + node.getPort() + " shut down gracefully.");
-            System.exit(0);
+//            System.exit(0);
 
         } catch (Exception e) {
             e.printStackTrace();
-            System.exit(1);
+//            System.exit(1);
         }
     }
 
