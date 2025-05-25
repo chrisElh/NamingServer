@@ -1,5 +1,7 @@
 package NodePackage;
 
+import NodePackage.Agent.SyncAgent;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,12 +11,22 @@ public class Node {
     private String name;
     private int port; // NEW: unicast port
 
+//    private String pathLocal;
+//
+//    private String pathReplica;
+
+
     // IDs of neighboring nodes in the ring
     private int previousID = -1;
     private int nextID = -1;
 
+    private String dirPathLocal;
+    private String dirPathReplica;
+
     // Optional: total number of nodes in the network (not used in logic)
     private int totalNodes = 0;
+
+    private SyncAgent syncAgent;
 
 
     // to know the directories in which we will delete the files after shutdown
@@ -58,6 +70,12 @@ public class Node {
         this.name = name;
         this.port = port;
     }
+//    public Node(String name, int port, String pathLocal, String pathReplica) {
+//        this.name = name;
+//        this.port = port;
+//        this.pathLocal = pathLocal;
+//        this.pathReplica = pathReplica;
+//    }
 
     // Getters
     public String getName() {
@@ -97,6 +115,30 @@ public class Node {
     public void setTotalNodes(int totalNodes) {
         this.totalNodes = totalNodes;
     }
+
+    public void setSyncAgent(SyncAgent syncAgent) {
+        this.syncAgent = syncAgent;
+    }
+
+    public SyncAgent getSyncAgent() {
+        return syncAgent;
+    }
+
+    public void setDirPathLocal(String dirPathLocal) {
+        this.dirPathLocal = dirPathLocal;
+    }
+
+    public String getDirPathLocal() {
+        return dirPathLocal;
+    }
+
+    public void setDirPathReplica(String dirPathReplica) {
+        this.dirPathReplica = dirPathReplica;
+    }
+    public String getDirPathReplica() {
+        return dirPathReplica;
+    }
+
 
     // Print current status of the node
     public void printStatus() {

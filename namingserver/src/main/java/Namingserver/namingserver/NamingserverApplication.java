@@ -1,6 +1,7 @@
 package Namingserver.namingserver;
 
 import Namingserver.namingserver.controller.ServerController;
+import Namingserver.namingserver.controller.communication.FailureListener;
 import Namingserver.namingserver.controller.communication.MulticastReceiver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -19,6 +20,10 @@ public class NamingserverApplication implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) {
+//		this.controller = new ServerController();
 		new Thread(new MulticastReceiver(controller)).start();
+		new Thread(new FailureListener(controller)).start();
+
 	}
+
 }

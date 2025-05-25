@@ -1,5 +1,6 @@
 package Namingserver.namingserver.controller;
 
+
 import Namingserver.namingserver.controller.communication.ServerUnicastSender;
 import NodePackage.Node;
 import Functions.HashingFunction;
@@ -122,83 +123,63 @@ public class ServerController {
         return nodeMap.size();
     }
 
-//    @PostMapping("/addNode")
-//    public String addNode(@RequestBody Node node) {
-//        // Compute a consistent hash for the node's name
-//        int hash = HashingFunction.hashNodeName(node.getName());
-//
-//        // Prevent duplicate nodes with the same name (hash collision)
-//        if (nodeMap.containsKey(hash)) {
-//            return "Node with name already exists (hash collision): " + hash;
-//        }
-//
-//        // Add the new node to the node map (hash → port)
-//        nodeMap.put(hash, node.getPort());
-//        saveNodeMapToDisk(); // Optional: store map on disk for persistence
-//
-//
-//        // ------------------------------
-//        // Handle local file registration
-//        // ------------------------------
-//
-//        // Check if the node has any local file names listed
-//        if (node.getLocalFileNames() != null) {
-//            for (String filename : node.getLocalFileNames()) {
-//
-//                // 1. Register the file as owned by this node
-//                fileToNodeMap.put(filename, hash);
-//
-//                // 2. Add the file to the localFiles map under this node’s hash
-//                localFiles.computeIfAbsent(hash, k -> new ArrayList<>()).add(filename);
-//
-//                // 3. Determine the replica node using consistent hashing
-//                int fileHash = HashingFunction.hashNodeName(filename);
-//                Integer replicaHash = nodeMap.floorKey(fileHash);
-//                if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
-//
-//
-//                if (!replicaHash.equals(hash)) {//hier wordt geconntroleerd als de nieuweiegnaar die de NS berekent niet de originele node is
-//                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);//Voegt de bestandsnaam toe aan de replicas-mapping van die replica-node.
-//
-//                    //  Stuur replica instructie via UDP
-//                    int originalNodePort = node.getPort();
-//                    int replicaNodePort = nodeMap.get(replicaHash);
-//
-//                    ServerUnicastSender.sendReplicaInstruction(String.valueOf(originalNodePort), filename, String.valueOf(replicaNodePort));
-//                }
-//
-//
-//                // 4. If the replica is not the same as the owner, add to replicas
-//                if (!replicaHash.equals(hash)) {
-//                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);
-//                }
-//
-//                // Optional: log for debugging
-//                System.out.println("Registered file: " + filename +
-//                        " → Owner hash: " + hash +
-//                        ", Replica hash: " + replicaHash);
-//            }
-//        }
-//
-//        // Final response confirming the node was added
-//        return "Node added: " + node.getName() +
-//                " (hash: " + hash +
-//                ", Port: " + node.getPort() +
-//                ", Files: " + node.getLocalFileNames().size() + ")";
-//    }
+    @PostMapping("/lock")
+    public String lockFile(@RequestParam String filename, @RequestParam String requesterName) {
+        Integer ownerHash = fileToNodeMap.get(filename);
+        if (ownerHash == null) return "❌ File not found.";
 
+        int requesterHash = HashingFunction.hashNodeName(requesterName);
+        if (requesterHash != ownerHash) return "🚫 Only the owner can lock the file.";
 
+        // Lock instructie sturen naar eigenaar (requester)
+        int ownerPort = nodeMap.get(ownerHash);
+        ServerUnicastSender.sendLockInstruction(String.valueOf(ownerPort), filename, true);  // true = lock
+        System.out.println("🔐 Lock instructie gestuurd naar eigenaar op port " + ownerPort);
 
+        // Lock instructie sturen naar alle replica-nodes
+        List<Integer> replicaHashes = replicas.entrySet().stream()
+                .filter(entry -> entry.getValue().contains(filename))
+                .map(Map.Entry::getKey)
+                .toList();
 
+        for (Integer replicaHash : replicaHashes) {
+            if (replicaHash == ownerHash) continue; // skip als replica toevallig owner is
+            int replicaPort = nodeMap.get(replicaHash);
+            ServerUnicastSender.sendLockInstruction(String.valueOf(replicaPort), filename, true);
+            System.out.println("🔐 Lock instructie gestuurd naar replica op port " + replicaPort);
+        }
 
-//    @PostMapping("/addNodeFromGui")
-//    public ResponseEntity<String> addNodeFromGui(@RequestBody Node node) {
-//        return ResponseEntity.ok(addNode(node));
-//    }
+        return "✅ Lock instructies verzonden voor bestand: " + filename;
+    }
 
+    @PostMapping("/unlock")
+    public String unlockFile(@RequestParam String filename, @RequestParam String requesterName) {
+        Integer ownerHash = fileToNodeMap.get(filename);
+        if (ownerHash == null) return "❌ File not found.";
 
+        int requesterHash = HashingFunction.hashNodeName(requesterName);
+        if (requesterHash != ownerHash) return "🚫 Only the owner can unlock the file.";
 
+        // Unlock instructie naar owner
+        int ownerPort = nodeMap.get(ownerHash);
+        ServerUnicastSender.sendLockInstruction(String.valueOf(ownerPort), filename, false); // false = unlock
+        System.out.println("🔓 Unlock instructie gestuurd naar eigenaar op port " + ownerPort);
 
+        // Unlock instructie naar replicas
+        List<Integer> replicaHashes = replicas.entrySet().stream()
+                .filter(entry -> entry.getValue().contains(filename))
+                .map(Map.Entry::getKey)
+                .toList();
+
+        for (Integer replicaHash : replicaHashes) {
+            if (replicaHash == ownerHash) continue;
+            int replicaPort = nodeMap.get(replicaHash);
+            ServerUnicastSender.sendLockInstruction(String.valueOf(replicaPort), filename, false);
+            System.out.println("🔓 Unlock instructie gestuurd naar replica op port " + replicaPort);
+        }
+
+        return "✅ Unlock instructies verzonden voor bestand: " + filename;
+    }
 
     @PostMapping("/addNode")
     public ResponseEntity<String> addNode(@RequestBody NodeRequest request) {
@@ -221,28 +202,6 @@ public class ServerController {
     }
 
 
-//    @PostMapping("/addNode")
-//    public ResponseEntity<String> addNode(@RequestBody Node.NodeApp.NodeRequest request) {
-//        try {
-//            int port = request.getPort();
-//            String name = request.getName();
-//            String localPath = request.getLocalPath();
-//            String replicaPath = request.getReplicaPath();
-//
-//            System.out.println("Received REST node creation request: " + name);
-//
-//            // Debug print: ensure these aren't null
-//            System.out.println("ServerController.nodeMap: " + getNodeMap());
-//
-//            // Attempt to call core logic
-//            Node node = NodeApp.createAndAnnounceNewNode(name, port, localPath, replicaPath);
-//
-//            return ResponseEntity.ok("Node created: " + node.getName());
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            return ResponseEntity.status(500).body("Error creating node: " + e.getMessage());
-//        }
-//    }
 
 
     // Removes a node and its associated data
@@ -262,6 +221,7 @@ public class ServerController {
 
         return "Node removed: " + node.getName();
     }
+
 
     // Registers a file to a node and sets a replica based on the file hash
     @PostMapping("/registerFile")
@@ -337,13 +297,6 @@ public class ServerController {
 
 
     // Returns local files owned by a specific node
-//    @GetMapping("/getLocalFiles")
-//    public List<String> getLocalFiles(@RequestParam String nodeName) {
-//        int hash = HashingFunction.hashNodeName(nodeName);
-//        return localFiles.getOrDefault(hash, Collections.emptyList());
-//    }
-
-
     @GetMapping("/getLocalFiles")
     public List<String> getLocalFiles(@RequestParam int nodePort) {
         Optional<Map.Entry<Integer, Integer>> entry = nodeMap.entrySet().stream()
@@ -385,6 +338,8 @@ public class ServerController {
 
         return result;
     }
+
+
 
     //Failure code
     // 1) DTO (data transfer object) for JSON response, this class can create an object that carries the data we want to send (port numbers)
@@ -566,4 +521,32 @@ public class ServerController {
 //    private void saveNodeMapToDisk() {
 //        // TODO: implement if needed
 //    }
+
+
+
+
+
+
+    public NavigableMap<Integer, Integer> getNodeMap() {
+        return nodeMap;
+    }
+
+    public Map<Integer, List<String>> getLocalFiles() {
+        return localFiles;
+    }
+
+    public Map<Integer, List<String>> getReplicas() {
+
+        return replicas;
+    }
+
+    public Map<String, Integer> getFileToNodeMap() {
+        return fileToNodeMap;
+    }
+
+
+
+
+
+
 }

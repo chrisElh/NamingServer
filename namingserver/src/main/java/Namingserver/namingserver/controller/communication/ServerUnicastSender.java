@@ -46,5 +46,31 @@ public class ServerUnicastSender {
         }
     }
 
+    public static void sendLockInstruction(String targetPort, String filename, boolean lock) {
+        try {
+            DatagramSocket socket = new DatagramSocket();
+            InetAddress address = InetAddress.getByName("localhost");
+
+            String command = (lock ? "LOCK:" : "UNLOCK:") + filename;
+            byte[] buffer = command.getBytes();
+
+            DatagramPacket packet = new DatagramPacket(
+                    buffer,
+                    buffer.length,
+                    address,
+                    Integer.parseInt(targetPort)
+            );
+
+            socket.send(packet);
+            socket.close();
+
+            System.out.println("📩 Unicast " + (lock ? "LOCK" : "UNLOCK") +
+                    " instruction sent to port " + targetPort + " for file " + filename);
+
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send lock/unlock instruction: " + e.getMessage());
+        }
+    }
+
 
 }

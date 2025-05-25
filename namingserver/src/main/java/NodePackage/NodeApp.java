@@ -1,4 +1,6 @@
 package NodePackage;
+import NodePackage.Agent.FailureReporter;
+import NodePackage.Agent.SyncAgent;
 
 import Namingserver.namingserver.controller.communication.ServerUnicastSender;
 import NodePackage.communication.*;
@@ -22,6 +24,8 @@ public class NodeApp {
 
     public Node createAndAnnounceNewNode(String name, int unicastPort, String dirPathLocal, String dirPathReplica) {
         Node node = new Node(name, unicastPort);
+        node.setDirPathLocal(dirPathLocal);
+        node.setDirPathReplica(dirPathReplica);
         node.loadLocalFilesFromDirectory(dirPathLocal);
         System.out.println("From NodeApp: " + node.getLocalFileNames());
 
@@ -33,6 +37,10 @@ public class NodeApp {
             // Maak file receiver aan (zonder eigen socket)
             FileReceiver fileReceiver = new FileReceiver(dirPathReplica, node);
 
+
+
+
+
             // Start TCP handler die alles verwerkt
             new Thread(new TCPMessageHandler(sharedSocket, node, this, fileReceiver)).start();
 
@@ -40,7 +48,15 @@ public class NodeApp {
             startUnicastReceiver(node);
             MulticastSender.sendMulticast(name, unicastPort, node.getLocalFileNames());
             new Thread(new MulticastReceiver(node, this)).start();
-            new Thread(new FileWatcher(node, dirPathLocal)).start();
+            SyncAgent agent = new SyncAgent(node);
+            node.setSyncAgent(agent);
+            new Thread(agent).start();
+
+            new Thread(new FileWatcher(node, dirPathLocal, agent)).start();
+
+
+
+
 
 
         } catch (Exception e) {
@@ -91,11 +107,9 @@ public class NodeApp {
                     }
                     String[] parts = message.trim().split(",");
 
-                    System.out.println("WE KOMEN NET VOOR DE PART SPLITSING!!!!!!!!!!!!!!!!!1");
 
                     // ⬅️ Alleen totaal aantal nodes (bv. "2")
                     if (parts.length == 1) {
-                        System.out.println("PAAAAART1!!!!!!!!!!!!!11");
                         int total = Integer.parseInt(parts[0]);
 
                         // Alleen node → zichzelf instellen als eigen neighbor
@@ -111,7 +125,6 @@ public class NodeApp {
                     }
 
                     else if (parts.length == 2) {
-                        System.out.println("PAAAAART2222!!!!!!!!!!!!!11");
                         int sender = Integer.parseInt(parts[0]);
                         int other = Integer.parseInt(parts[1]);
                         neighborCandidates.add(new int[]{sender, other});
@@ -230,6 +243,7 @@ public class NodeApp {
                 s.getOutputStream().write("PING".getBytes());
             } catch (IOException ioe) {
                 System.err.println("Failure detected on port " + failedPort);
+                FailureReporter.reportFailure(failedPort);
                 int[] nb = getUpdatedNeighborsFromNamingServer(failedPort);
                 node.setPreviousPort(nb[0]);
                 node.setNextPort(nb[1]);
@@ -329,6 +343,10 @@ public class NodeApp {
             } else {
                 System.err.println("❌ Failed to get neighbors for shutdown. Status: " + con.getResponseCode());
             }
+
+
+            System.out.println("✅ Node " + node.getName() + " on port " + node.getPort() + " shut down gracefully.");
+            System.exit(0);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -458,29 +476,6 @@ public class NodeApp {
 
 
 
-    // Call Naming Server to get replica port for a file excluding the shutting down node
-
-    // THIS IS CODE FOR SHUTDOWN PHASE 3
-//    private static int getReplicaForFileFromNamingServer(String filename, int shuttingDownPort) {
-//        try {
-//            String url = NAMING_BASE + "/getReplicaForFile?filename=" + filename + "&shuttingDownPort=" + shuttingDownPort;
-//            HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
-//            con.setRequestMethod("GET");
-//
-//            if (con.getResponseCode() == 200) {
-//                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-//                String response = in.readLine();
-//                in.close();
-//
-//                if (response != null && !response.equals("null") && !response.isEmpty()) {
-//                    return Integer.parseInt(response);
-//                }
-//            }
-//        } catch (Exception e) {
-//            System.err.println("❌ Error fetching replica for file " + filename + ": " + e.getMessage());
-//        }
-//        return -1;
-//    }
 
 
 
