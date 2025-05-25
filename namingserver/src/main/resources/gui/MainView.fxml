@@ -1,17 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="gui.MainController">
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="gui.MainController">
+
     <center>
-        <VBox spacing="10" style="-fx-padding: 10;">
-            <Label text="Add Node" />
+        <VBox spacing="15" style="-fx-padding: 20;">
+            <!-- Add Node Section -->
             <HBox spacing="10">
-                <TextField fx:id="nodeNameField" promptText="Node Name" />
+                <Label text="Node Name:" />
+                <TextField fx:id="nodeNameField" promptText="Enter node name" />
+                <Label text="File Count:" />
                 <ChoiceBox fx:id="fileCountChoiceBox" />
                 <Button text="Add Node" onAction="#handleAddNode" />
             </HBox>
+
+            <!-- Fetch Nodes Button -->
+            <HBox spacing="10">
+                <Button text="Fetch Nodes" onAction="#handleFetchNodes" />
+            </HBox>
+
+            <!-- Table to show node details -->
+            <TableView fx:id="nodeTable" prefHeight="400" prefWidth="600">
+                <columns>
+                    <TableColumn fx:id="nameColumn" text="Node Name" prefWidth="200"/>
+                    <TableColumn fx:id="portColumn" text="Port" prefWidth="150"/>
+                    <TableColumn fx:id="hashColumn" text="Hash ID" prefWidth="200"/>
+                </columns>
+            </TableView>
         </VBox>
     </center>
 </BorderPane>

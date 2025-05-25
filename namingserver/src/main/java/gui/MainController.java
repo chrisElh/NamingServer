@@ -8,6 +8,9 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.event.ActionEvent;
 
+
+
+
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -17,7 +20,18 @@ import java.util.stream.Collectors;
 
 import NodePackage.NodeApp;
 
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.cell.PropertyValueFactory;
+
+
+
+
 public class MainController {
+
 
     @FXML
     private TextField nodeNameField;
@@ -32,6 +46,16 @@ public class MainController {
     private void initialize() {
         fileCountChoiceBox.getItems().addAll(0, 1, 2, 3, 4, 5);
         fileCountChoiceBox.setValue(0); // default selection
+
+
+
+        //
+        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
+        portColumn.setCellValueFactory(new PropertyValueFactory<>("port"));
+        hashColumn.setCellValueFactory(new PropertyValueFactory<>("hash"));
+
+
+
     }
 
     @FXML
@@ -158,6 +182,77 @@ public class MainController {
 
         return 0;
     }
+
+// Table view  GUI
+
+    @FXML private TableView<NodeDisplay> nodeTable;
+    @FXML private TableColumn<NodeDisplay, String> nameColumn;
+    @FXML private TableColumn<NodeDisplay, Integer> portColumn;
+    @FXML private TableColumn<NodeDisplay, Integer> hashColumn;
+
+
+    public static class NodeDisplay {
+        private final String name;
+        private final int port;
+        private final int hash;
+
+        public NodeDisplay(String name, int port, int hash) {
+            this.name = name;
+            this.port = port;
+            this.hash = hash;
+        }
+
+        public String getName() { return name; }
+        public int getPort() { return port; }
+        public int getHash() { return hash; }
+    }
+
+
+
+    @FXML
+    private void handleFetchNodes() {
+        try {
+            URL url = new URL("http://localhost:8080/getAllNodes");
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            int responseCode = con.getResponseCode();
+            if (responseCode == 200) {
+                StringBuilder json = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        json.append(line);
+                    }
+                }
+
+                // Parse JSON manually (e.g., {"12345":8080, "45678":9060})
+                String cleaned = json.toString().replaceAll("[{}\"]", "");
+                String[] entries = cleaned.split(",");
+
+                ObservableList<NodeDisplay> nodeList = FXCollections.observableArrayList();
+                for (String entry : entries) {
+                    String[] parts = entry.split(":");
+                    if (parts.length == 2) {
+                        int hash = Integer.parseInt(parts[0].trim());
+                        int port = Integer.parseInt(parts[1].trim());
+                        String name = "Node@" + port;
+                        nodeList.add(new NodeDisplay(name, port, hash));
+                    }
+                }
+
+                nodeTable.setItems(nodeList);
+
+            } else {
+                showAlert("Server returned HTTP " + responseCode);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert("Failed to fetch nodes: " + e.getMessage());
+        }
+    }
+
 
 
 
