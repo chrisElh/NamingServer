@@ -1,5 +1,6 @@
 package NodePackage;
 //trail
+import NodePackage.Agent.FailureReporter;
 import NodePackage.communication.*;
 import Functions.HashingFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -232,6 +233,7 @@ public class NodeApp {
                 s.getOutputStream().write("PING".getBytes());
             } catch (IOException ioe) {
                 System.err.println("Failure detected on port " + failedPort);
+                FailureReporter.reportFailure(failedPort);
                 int[] nb = getUpdatedNeighborsFromNamingServer(failedPort);
                 node.setPreviousPort(nb[0]);
                 node.setNextPort(nb[1]);

@@ -20,6 +20,7 @@ public class NamingserverApplication implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) {
+//		this.controller = new ServerController();
 		new Thread(new MulticastReceiver(controller)).start();
 		new Thread(new FailureListener(controller)).start();
 

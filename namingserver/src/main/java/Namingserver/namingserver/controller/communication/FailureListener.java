@@ -1,7 +1,7 @@
 package Namingserver.namingserver.controller.communication;
 
-import Namingserver.namingserver.controller.ServerController;
 import Namingserver.namingserver.controller.Agent.FailureAgent;
+import Namingserver.namingserver.controller.ServerController;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
