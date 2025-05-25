@@ -322,16 +322,44 @@ public class MainController {
 
     private Map<String, List<String>> parseFileJson(String json) {
         Map<String, List<String>> map = new HashMap<>();
-        json = json.replaceAll("[{}\\[\\]\"]", "");
-        String[] parts = json.split("replica:");
+        map.put("local", new ArrayList<>());
+        map.put("replica", new ArrayList<>());
 
-        String[] local = parts[0].replace("local:", "").split(",");
-        String[] replica = parts.length > 1 ? parts[1].split(",") : new String[0];
+        try {
+            // Clean and standardize JSON string
+            json = json.replaceAll("[\\{\\}\"]", "");  // Remove curly braces and quotes
+            String[] sections = json.split("(?=local:|replica:)");  // split by key names
 
-        map.put("local", Arrays.asList(local));
-        map.put("replica", Arrays.asList(replica));
+            for (String section : sections) {
+                if (section.startsWith("local:")) {
+                    String files = section.substring("local:".length()).trim();
+                    if (!files.isEmpty()) {
+                        List<String> localList = Arrays.stream(files.split(","))
+                                .map(String::trim).filter(s -> !s.isEmpty()).toList();
+                        map.put("local", localList);
+                    }
+                } else if (section.startsWith("replica:")) {
+                    String files = section.substring("replica:".length()).trim();
+                    if (!files.isEmpty()) {
+                        List<String> replicaList = Arrays.stream(files.split(","))
+                                .map(String::trim).filter(s -> !s.isEmpty()).toList();
+                        map.put("replica", replicaList);
+                    }
+                }
+            }
+
+            // Debugging
+//            System.out.println("Local files: " + map.get("local"));
+//            System.out.println("Replica files: " + map.get("replica"));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert("Error parsing file JSON: " + e.getMessage());
+        }
+
         return map;
     }
+
 
     private Map<String, List<String>> parseFileLists(String json) {
         Map<String, List<String>> map = new HashMap<>();
