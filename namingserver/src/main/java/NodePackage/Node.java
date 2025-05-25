@@ -192,4 +192,25 @@ public class Node {
     }
 
 
+
+
+
+
+    // to set and get the directories of the nodes for storage removal
+    public void setLocalDirPath(String path) {
+        this.localDirPath = path;
+    }
+    public void setReplicaDirPath(String path) {
+        this.replicaDirPath = path;
+    }
+    public String getLocalDirPath() {
+        return this.localDirPath;
+    }
+    public String getReplicaDirPath() {
+        return this.replicaDirPath;
+    }
+
+
+
+
 }

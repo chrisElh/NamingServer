@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import NodePackage.NodeRequest;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -19,7 +21,7 @@ public class ServerController {
     private static final int MIN = -Integer.MAX_VALUE;
 
     // Maps hashed node IDs to IP addresses
-    private TreeMap<Integer, Integer> nodeMap = new TreeMap<>();
+    private static TreeMap<Integer, Integer> nodeMap = new TreeMap<>();
 
     // Maps IP addresses to node names (to reconstruct full Node objects)
     private Map<String, String> ipToName = new HashMap<>();
@@ -118,70 +120,127 @@ public class ServerController {
         return nodeMap.size();
     }
 
+//    @PostMapping("/addNode")
+//    public String addNode(@RequestBody Node node) {
+//        // Compute a consistent hash for the node's name
+//        int hash = HashingFunction.hashNodeName(node.getName());
+//
+//        // Prevent duplicate nodes with the same name (hash collision)
+//        if (nodeMap.containsKey(hash)) {
+//            return "Node with name already exists (hash collision): " + hash;
+//        }
+//
+//        // Add the new node to the node map (hash → port)
+//        nodeMap.put(hash, node.getPort());
+//        saveNodeMapToDisk(); // Optional: store map on disk for persistence
+//
+//
+//        // ------------------------------
+//        // Handle local file registration
+//        // ------------------------------
+//
+//        // Check if the node has any local file names listed
+//        if (node.getLocalFileNames() != null) {
+//            for (String filename : node.getLocalFileNames()) {
+//
+//                // 1. Register the file as owned by this node
+//                fileToNodeMap.put(filename, hash);
+//
+//                // 2. Add the file to the localFiles map under this node’s hash
+//                localFiles.computeIfAbsent(hash, k -> new ArrayList<>()).add(filename);
+//
+//                // 3. Determine the replica node using consistent hashing
+//                int fileHash = HashingFunction.hashNodeName(filename);
+//                Integer replicaHash = nodeMap.floorKey(fileHash);
+//                if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
+//
+//
+//                if (!replicaHash.equals(hash)) {//hier wordt geconntroleerd als de nieuweiegnaar die de NS berekent niet de originele node is
+//                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);//Voegt de bestandsnaam toe aan de replicas-mapping van die replica-node.
+//
+//                    //  Stuur replica instructie via UDP
+//                    int originalNodePort = node.getPort();
+//                    int replicaNodePort = nodeMap.get(replicaHash);
+//
+//                    ServerUnicastSender.sendReplicaInstruction(String.valueOf(originalNodePort), filename, String.valueOf(replicaNodePort));
+//                }
+//
+//
+//                // 4. If the replica is not the same as the owner, add to replicas
+//                if (!replicaHash.equals(hash)) {
+//                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);
+//                }
+//
+//                // Optional: log for debugging
+//                System.out.println("Registered file: " + filename +
+//                        " → Owner hash: " + hash +
+//                        ", Replica hash: " + replicaHash);
+//            }
+//        }
+//
+//        // Final response confirming the node was added
+//        return "Node added: " + node.getName() +
+//                " (hash: " + hash +
+//                ", Port: " + node.getPort() +
+//                ", Files: " + node.getLocalFileNames().size() + ")";
+//    }
+
+
+
+
+
+//    @PostMapping("/addNodeFromGui")
+//    public ResponseEntity<String> addNodeFromGui(@RequestBody Node node) {
+//        return ResponseEntity.ok(addNode(node));
+//    }
+
+
+
+
+
     @PostMapping("/addNode")
-    public String addNode(@RequestBody Node node) {
-        // Compute a consistent hash for the node's name
-        int hash = HashingFunction.hashNodeName(node.getName());
+    public ResponseEntity<String> addNode(@RequestBody NodeRequest request) {
+        try {
+            int port = request.getPort();
+            String name = request.getName();
+            String localPath = request.getLocalPath();
+            String replicaPath = request.getReplicaPath();
 
-        // Prevent duplicate nodes with the same name (hash collision)
-        if (nodeMap.containsKey(hash)) {
-            return "Node with name already exists (hash collision): " + hash;
+            System.out.println("Received REST node creation request: " + name);
+
+            NodeApp app = new NodeApp();
+            Node node = app.createAndAnnounceNewNode(name, port, localPath, replicaPath);
+
+            return ResponseEntity.ok("Node created: " + node.getName());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Error creating node: " + e.getMessage());
         }
-
-        // Add the new node to the node map (hash → port)
-        nodeMap.put(hash, node.getPort());
-        saveNodeMapToDisk(); // Optional: store map on disk for persistence
-
-
-        // ------------------------------
-        // Handle local file registration
-        // ------------------------------
-
-        // Check if the node has any local file names listed
-        if (node.getLocalFileNames() != null) {
-            for (String filename : node.getLocalFileNames()) {
-
-                // 1. Register the file as owned by this node
-                fileToNodeMap.put(filename, hash);
-
-                // 2. Add the file to the localFiles map under this node’s hash
-                localFiles.computeIfAbsent(hash, k -> new ArrayList<>()).add(filename);
-
-                // 3. Determine the replica node using consistent hashing
-                int fileHash = HashingFunction.hashNodeName(filename);
-                Integer replicaHash = nodeMap.floorKey(fileHash);
-                if (replicaHash == null) replicaHash = nodeMap.lastKey(); // Wrap around
-
-
-                if (!replicaHash.equals(hash)) {//hier wordt geconntroleerd als de nieuweiegnaar die de NS berekent niet de originele node is
-                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);//Voegt de bestandsnaam toe aan de replicas-mapping van die replica-node.
-
-                    //  Stuur replica instructie via UDP
-                    int originalNodePort = node.getPort();
-                    int replicaNodePort = nodeMap.get(replicaHash);
-
-                    ServerUnicastSender.sendReplicaInstruction(String.valueOf(originalNodePort), filename, String.valueOf(replicaNodePort));
-                }
-
-
-                // 4. If the replica is not the same as the owner, add to replicas
-                if (!replicaHash.equals(hash)) {
-                    replicas.computeIfAbsent(replicaHash, k -> new ArrayList<>()).add(filename);
-                }
-
-                // Optional: log for debugging
-                System.out.println("Registered file: " + filename +
-                        " → Owner hash: " + hash +
-                        ", Replica hash: " + replicaHash);
-            }
-        }
-
-        // Final response confirming the node was added
-        return "Node added: " + node.getName() +
-                " (hash: " + hash +
-                ", Port: " + node.getPort() +
-                ", Files: " + node.getLocalFileNames().size() + ")";
     }
+
+
+//    @PostMapping("/addNode")
+//    public ResponseEntity<String> addNode(@RequestBody Node.NodeApp.NodeRequest request) {
+//        try {
+//            int port = request.getPort();
+//            String name = request.getName();
+//            String localPath = request.getLocalPath();
+//            String replicaPath = request.getReplicaPath();
+//
+//            System.out.println("Received REST node creation request: " + name);
+//
+//            // Debug print: ensure these aren't null
+//            System.out.println("ServerController.nodeMap: " + getNodeMap());
+//
+//            // Attempt to call core logic
+//            Node node = NodeApp.createAndAnnounceNewNode(name, port, localPath, replicaPath);
+//
+//            return ResponseEntity.ok("Node created: " + node.getName());
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            return ResponseEntity.status(500).body("Error creating node: " + e.getMessage());
+//        }
+//    }
 
 
     // Removes a node and its associated data
@@ -189,7 +248,7 @@ public class ServerController {
     public String removeNode(@RequestBody Node node) {
         int hash = HashingFunction.hashNodeName(node.getName());
 
-        if (!nodeMap.containsKey(hash)) {
+        if (!nodeMap.containsKey(hash))  {
             return "Node not found for removal: " + node.getName();
         }
 
@@ -487,6 +546,16 @@ public class ServerController {
         }
         return ResponseEntity.ok(null);
     }
+
+    public static Map<Integer, Integer> getNodeMap() {
+        return nodeMap;
+    }
+
+    @GetMapping("/nodeCount")
+    public ResponseEntity<Integer> getNodeCountFromServer() {
+        return ResponseEntity.ok(getNodeMap().size());
+    }
+
 
 //
 //    // Placeholder
