@@ -59,7 +59,7 @@ public class FileWatcher implements Runnable {
                                 lockState.put(fileName, false);
                             }
                         }
-                        Thread.sleep(1000); // 1 seconde pauze
+                        Thread.sleep(500); // 1 seconde pauze
                     } catch (Exception e) {
                         System.err.println("❌ Lock polling error:");
                         e.printStackTrace();

@@ -107,7 +107,7 @@ public class SyncAgent implements Runnable, Serializable {
                 }
 
                 // Wacht 5 seconden voor de volgende synchronisatie
-                Thread.sleep(5000);
+                Thread.sleep(500);
 
             } catch (InterruptedException e) {
                 // Thread wordt netjes afgesloten bij interrupt
