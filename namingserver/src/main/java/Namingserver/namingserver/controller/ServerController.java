@@ -1,5 +1,6 @@
 package Namingserver.namingserver.controller;
 
+
 import Namingserver.namingserver.controller.communication.ServerUnicastSender;
 import NodePackage.Node;
 import Functions.HashingFunction;
@@ -259,6 +260,7 @@ public class ServerController {
         return "Node removed: " + node.getName();
     }
 
+
     // Registers a file to a node and sets a replica based on the file hash
     @PostMapping("/registerFile")
     public String registerFile(@RequestParam String filename, @RequestParam String nodeName) {
@@ -332,11 +334,25 @@ public class ServerController {
 
 
 
+//    @GetMapping("/getLocalFiles")
+//    public Map<Integer, List<String>> getAllLFiles() {
+//        return localFiles;
+//    }
+//
+//
+//    @GetMapping("/getReplicaFiles")
+//    public Map<Integer, List<String>> getAllRFiles() {
+//        return replicas;
+//    }
+
+
+
     // Returns local files owned by a specific node
     @GetMapping("/getLocalFiles")
-    public List<String> getLocalFiles(@RequestParam String nodeName) {
-        int hash = HashingFunction.hashNodeName(nodeName);
-        return localFiles.getOrDefault(hash, Collections.emptyList());
+    public Map<Integer,List<String>> getLocalFiles(@RequestParam String nodeName) {
+//        int hash = HashingFunction.hashNodeName(nodeName);
+//        return localFiles.getOrDefault(hash, Collections.emptyList());
+        return localFiles;
     }
 
     // Returns replicated files for a specific node
@@ -365,6 +381,8 @@ public class ServerController {
 
         return result;
     }
+
+
 
     //Failure code
     // 1) DTO (data transfer object) for JSON response, this class can create an object that carries the data we want to send (port numbers)
@@ -463,4 +481,32 @@ public class ServerController {
 //    private void saveNodeMapToDisk() {
 //        // TODO: implement if needed
 //    }
+
+
+
+
+
+
+    public NavigableMap<Integer, Integer> getNodeMap() {
+        return nodeMap;
+    }
+
+    public Map<Integer, List<String>> getLocalFiles() {
+        return localFiles;
+    }
+
+    public Map<Integer, List<String>> getReplicas() {
+
+        return replicas;
+    }
+
+    public Map<String, Integer> getFileToNodeMap() {
+        return fileToNodeMap;
+    }
+
+
+
+
+
+
 }
