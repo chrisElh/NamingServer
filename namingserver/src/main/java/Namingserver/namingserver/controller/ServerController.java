@@ -3,6 +3,8 @@ package Namingserver.namingserver.controller;
 import Namingserver.namingserver.controller.communication.ServerUnicastSender;
 import NodePackage.Node;
 import Functions.HashingFunction;
+import NodePackage.NodeApp;
+import NodePackage.NodeRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

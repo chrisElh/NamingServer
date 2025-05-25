@@ -17,6 +17,11 @@ public class Node {
     private int totalNodes = 0;
 
 
+    // to know the directories in which we will delete the files after shutdown
+    private String localDirPath;
+    private String replicaDirPath;
+
+
     //Fields needed for failure:
     private int previousPort, nextPort;
     public void setPreviousPort(int port) { this.previousPort = port; }
