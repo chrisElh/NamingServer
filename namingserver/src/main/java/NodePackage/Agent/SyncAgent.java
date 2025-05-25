@@ -87,11 +87,12 @@ public class SyncAgent implements Runnable, Serializable {
                             } else {
                                 // Update alleen lock-status indien gewijzigd
                                 FileEntry current = existing.get();
-                                if (current.locked != nf.locked) {
+                                if (!current.owner.equals(node.getName()) && current.locked != nf.locked) {
                                     current.locked = nf.locked;
-                                    System.out.println("🔒 Lock-status bijgewerkt: " + nf.filename +
+                                    System.out.println("🔒 Lock-status bijgewerkt door neighbor: " + nf.filename +
                                             " (locked=" + nf.locked + ")");
                                 }
+
                             }
                         }
 
@@ -107,7 +108,7 @@ public class SyncAgent implements Runnable, Serializable {
                 }
 
                 // Wacht 5 seconden voor de volgende synchronisatie
-                Thread.sleep(500);
+                Thread.sleep(5000);
 
             } catch (InterruptedException e) {
                 // Thread wordt netjes afgesloten bij interrupt

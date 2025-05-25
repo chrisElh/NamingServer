@@ -19,6 +19,8 @@ public class FileWatcher implements Runnable {
     private final String directoryPath;
     private final SyncAgent syncAgent;
     private final ConcurrentHashMap<String, Boolean> lockState = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> lastModifiedTimestamps = new ConcurrentHashMap<>();
+    private static final long MODIFY_COOLDOWN_MS = 35000; // 2 seconden cooldown
 
     public FileWatcher(Node node, String directoryPath, SyncAgent syncAgent) {
         this.node = node;
@@ -59,7 +61,7 @@ public class FileWatcher implements Runnable {
                                 lockState.put(fileName, false);
                             }
                         }
-                        Thread.sleep(500); // 1 seconde pauze
+                        Thread.sleep(1000); // 1 seconde pauze
                     } catch (Exception e) {
                         System.err.println("❌ Lock polling error:");
                         e.printStackTrace();
@@ -85,13 +87,23 @@ public class FileWatcher implements Runnable {
                     }
 
                     if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
-                        System.out.println("✏️ File modified → sending lock: " + fileName);
-                        syncAgent.lockFile(fileName);
+                        long now = System.currentTimeMillis();
+                        long last = lastModifiedTimestamps.getOrDefault(fileName, 0L);
+
+                        if (now - last >= MODIFY_COOLDOWN_MS) {
+                            System.out.println("✏️ File modified → sending lock: " + fileName);
+                            syncAgent.lockFile(fileName);
+                            lastModifiedTimestamps.put(fileName, now);
+                        } else {
+                            System.out.println("⏳ Skipping lock (cooldown): " + fileName);
+                        }
                     }
 
                     if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
                         System.out.println("🗑️ File deleted → sending unlock: " + fileName);
                         syncAgent.unlockFile(fileName);
+                        node.getLocalFileNames().remove(fileName);
+                        node.getLocalFileObjects().removeIf(f -> f.getName().equals(fileName));
                     }
                 }
                 key.reset();
