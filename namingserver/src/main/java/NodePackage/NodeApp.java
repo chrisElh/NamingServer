@@ -289,26 +289,26 @@ public class NodeApp {
 
                 // PHASE 3: Notify owners of local files to replicate if needed
 // PHASE 3: Notify owners to replicate local files if needed
-                for (String filename : node.getLocalFileNames()) {
-                    int shuttingDownPort = node.getPort();
-                    int replicaPort = getReplicaForFileFromNamingServer(filename, shuttingDownPort);
-
-                    if (replicaPort > 0 && replicaPort != shuttingDownPort) {
-                        int newReplicaPort = findNewReplicaTarget(replicaPort, filename);
-
-                        if (newReplicaPort > 0 && newReplicaPort != replicaPort && newReplicaPort != shuttingDownPort) {
-                            // Use existing ServerUnicastSender method to send replication instruction
-                            ServerUnicastSender.sendReplicaInstruction(
-                                    String.valueOf(replicaPort),
-                                    filename,
-                                    String.valueOf(newReplicaPort)
-                            );
-
-                            // Update replica log on Naming Server (already implemented)
-                            updateReplicaLogOnShutdown(filename, replicaPort, newReplicaPort);
-                        }
-                    }
-                }
+//                for (String filename : node.getLocalFileNames()) {
+//                    int shuttingDownPort = node.getPort();
+//                    int replicaPort = getReplicaForFileFromNamingServer(filename, shuttingDownPort);
+//
+//                    if (replicaPort > 0 && replicaPort != shuttingDownPort) {
+//                        int newReplicaPort = findNewReplicaTarget(replicaPort, filename);
+//
+//                        if (newReplicaPort > 0 && newReplicaPort != replicaPort && newReplicaPort != shuttingDownPort) {
+//                            // Use existing ServerUnicastSender method to send replication instruction
+//                            ServerUnicastSender.sendReplicaInstruction(
+//                                    String.valueOf(replicaPort),
+//                                    filename,
+//                                    String.valueOf(newReplicaPort)
+//                            );
+//
+//                            // Update replica log on Naming Server (already implemented)
+//                            updateReplicaLogOnShutdown(filename, replicaPort, newReplicaPort);
+//                        }
+//                    }
+//                }
 
 
 
@@ -459,26 +459,28 @@ public class NodeApp {
 
 
     // Call Naming Server to get replica port for a file excluding the shutting down node
-    private static int getReplicaForFileFromNamingServer(String filename, int shuttingDownPort) {
-        try {
-            String url = NAMING_BASE + "/getReplicaForFile?filename=" + filename + "&shuttingDownPort=" + shuttingDownPort;
-            HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
-            con.setRequestMethod("GET");
 
-            if (con.getResponseCode() == 200) {
-                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-                String response = in.readLine();
-                in.close();
-
-                if (response != null && !response.equals("null") && !response.isEmpty()) {
-                    return Integer.parseInt(response);
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("❌ Error fetching replica for file " + filename + ": " + e.getMessage());
-        }
-        return -1;
-    }
+    // THIS IS CODE FOR SHUTDOWN PHASE 3
+//    private static int getReplicaForFileFromNamingServer(String filename, int shuttingDownPort) {
+//        try {
+//            String url = NAMING_BASE + "/getReplicaForFile?filename=" + filename + "&shuttingDownPort=" + shuttingDownPort;
+//            HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+//            con.setRequestMethod("GET");
+//
+//            if (con.getResponseCode() == 200) {
+//                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+//                String response = in.readLine();
+//                in.close();
+//
+//                if (response != null && !response.equals("null") && !response.isEmpty()) {
+//                    return Integer.parseInt(response);
+//                }
+//            }
+//        } catch (Exception e) {
+//            System.err.println("❌ Error fetching replica for file " + filename + ": " + e.getMessage());
+//        }
+//        return -1;
+//    }
 
 
 
