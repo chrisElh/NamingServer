@@ -506,9 +506,7 @@ public class ServerController {
 //        return ResponseEntity.ok(null);
 //    }
 
-    public static Map<Integer, Integer> getNodeMap() {
-        return nodeMap;
-    }
+
 
     @GetMapping("/nodeCount")
     public ResponseEntity<Integer> getNodeCountFromServer() {

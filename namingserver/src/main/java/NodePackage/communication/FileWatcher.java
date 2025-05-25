@@ -20,7 +20,7 @@ public class FileWatcher implements Runnable {
     private final SyncAgent syncAgent;
     private final ConcurrentHashMap<String, Boolean> lockState = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> lastModifiedTimestamps = new ConcurrentHashMap<>();
-    private static final long MODIFY_COOLDOWN_MS = 35000; // 2 seconden cooldown
+    private static final long MODIFY_COOLDOWN_MS = 22000; // 2 seconden cooldown
 
     public FileWatcher(Node node, String directoryPath, SyncAgent syncAgent) {
         this.node = node;
