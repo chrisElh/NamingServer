@@ -38,6 +38,19 @@
                 <Button text="Fetch Nodes" onAction="#handleFetchNodes" />
             </HBox>
 
+            <!-- Previous and Next Node -->
+            <HBox spacing="20">
+                <VBox>
+                    <Label text="Previous Node ID:" />
+                    <Label fx:id="prevIdLabel" text="-" />
+                </VBox>
+                <VBox>
+                    <Label text="Next Node ID:" />
+                    <Label fx:id="nextIdLabel" text="-" />
+                </VBox>
+            </HBox>
+
+
             <!-- Table to show node details -->
             <TableView fx:id="nodeTable" prefHeight="400" prefWidth="600">
                 <columns>

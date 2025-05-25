@@ -295,6 +295,8 @@ public class MainController {
 
         String nodeName = selected.getName();
 
+        fetchConfigForNode(selected.getName(), selected.getPort());
+
         try {
             URL url = new URL("http://localhost:8080/getFilesForNode?nodeName=" + nodeName);
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -312,6 +314,9 @@ public class MainController {
             } else {
                 showAlert("Failed to fetch file list (HTTP " + code + ")");
             }
+
+
+
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -460,6 +465,54 @@ public class MainController {
             showAlert("Error contacting server for node name.");
         }
         return "Unknown";
+    }
+
+
+
+    // View Next and previous nodes
+
+    @FXML private Label prevIdLabel;
+    @FXML private Label nextIdLabel;
+
+
+
+    private void fetchConfigForNode(String nodeName, int nodePort) {
+        try {
+            URL url = new URL("http://localhost:8080/neighbors?port=" + nodePort);
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            int code = con.getResponseCode();
+            if (code == 200) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                String json = in.lines().collect(Collectors.joining());
+                in.close();
+
+                Map<String, Integer> config = parseNeighborJson(json);
+                prevIdLabel.setText(String.valueOf(config.getOrDefault("previous", -1)));
+                nextIdLabel.setText(String.valueOf(config.getOrDefault("next", -1)));
+            } else {
+                showAlert("Server returned: " + code);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert("Error fetching node neighbors: " + e.getMessage());
+        }
+    }
+
+
+    private Map<String, Integer> parseNeighborJson(String json) {
+        Map<String, Integer> map = new HashMap<>();
+        json = json.replaceAll("[{}\\s\"]", "");  // remove { } " and spaces
+        String[] parts = json.split(",");
+        for (String part : parts) {
+            String[] kv = part.split(":");
+            if (kv.length == 2) {
+                map.put(kv[0], Integer.parseInt(kv[1]));
+            }
+        }
+        return map;
     }
 
 
