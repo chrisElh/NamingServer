@@ -2,10 +2,7 @@ package gui;
 
 import NodePackage.Node;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ChoiceBox;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.event.ActionEvent;
 
 
@@ -14,8 +11,7 @@ import javafx.event.ActionEvent;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Arrays;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import NodePackage.NodeApp;
@@ -23,8 +19,6 @@ import NodePackage.NodeApp;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 
 
@@ -53,6 +47,29 @@ public class MainController {
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
         portColumn.setCellValueFactory(new PropertyValueFactory<>("port"));
         hashColumn.setCellValueFactory(new PropertyValueFactory<>("hash"));
+
+
+        nodeTable.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 1) {
+                handleTableClick();  // triggers file fetch
+            }
+        });
+
+
+
+//        nodeTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+//            if (newSelection != null) {
+//                String selectedNodeName = newSelection.getName(); // or getNodeName() if it's called that
+//                fetchFilesForNode(selectedNodeName);
+//            }
+//        });
+//        nodeTable2.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+//            if (newSelection != null) {
+//                String selectedNodeName = newSelection.getName();
+//                fetchFilesForNode(selectedNodeName);
+//            }
+//        });
+
 
 
 
@@ -186,6 +203,7 @@ public class MainController {
 // Table view  GUI
 
     @FXML private TableView<NodeDisplay> nodeTable;
+    @FXML private TableView<NodeDisplay> nodeTable2;
     @FXML private TableColumn<NodeDisplay, String> nameColumn;
     @FXML private TableColumn<NodeDisplay, Integer> portColumn;
     @FXML private TableColumn<NodeDisplay, Integer> hashColumn;
@@ -231,17 +249,23 @@ public class MainController {
                 String[] entries = cleaned.split(",");
 
                 ObservableList<NodeDisplay> nodeList = FXCollections.observableArrayList();
+                ObservableList<NodeDisplay> nodeList2 = FXCollections.observableArrayList();
+
                 for (String entry : entries) {
                     String[] parts = entry.split(":");
                     if (parts.length == 2) {
                         int hash = Integer.parseInt(parts[0].trim());
                         int port = Integer.parseInt(parts[1].trim());
                         String name = "Node@" + port;
-                        nodeList.add(new NodeDisplay(name, port, hash));
+                        String RealName = fetchNodeNameByHash(hash); // <-- Get the real name!
+
+                        nodeList.add(new NodeDisplay(RealName, port, hash));
+                        nodeList2.add(new NodeDisplay(name, port, hash));
                     }
                 }
 
                 nodeTable.setItems(nodeList);
+//                nodeTable2.setItems(nodeList2);
 
             } else {
                 showAlert("Server returned HTTP " + responseCode);
@@ -253,6 +277,162 @@ public class MainController {
         }
     }
 
+
+
+    // FIle viewr
+
+    @FXML
+    private ListView<String> localFileListView;
+    @FXML
+    private ListView<String> replicaFileListView;
+
+
+
+    @FXML
+    private void handleTableClick() {
+        NodeDisplay selected = nodeTable.getSelectionModel().getSelectedItem();
+        if (selected == null) return;
+
+        String nodeName = selected.getName();
+
+        try {
+            URL url = new URL("http://localhost:8080/getFilesForNode?nodeName=" + nodeName);
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            int code = con.getResponseCode();
+            if (code == 200) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                String json = reader.lines().collect(Collectors.joining());
+
+                Map<String, List<String>> fileMap = parseFileJson(json);
+
+                localFileListView.setItems(FXCollections.observableArrayList(fileMap.get("local")));
+                replicaFileListView.setItems(FXCollections.observableArrayList(fileMap.get("replica")));
+            } else {
+                showAlert("Failed to fetch file list (HTTP " + code + ")");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert("Error: " + e.getMessage());
+        }
+    }
+
+
+    private Map<String, List<String>> parseFileJson(String json) {
+        Map<String, List<String>> map = new HashMap<>();
+        json = json.replaceAll("[{}\\[\\]\"]", "");
+        String[] parts = json.split("replica:");
+
+        String[] local = parts[0].replace("local:", "").split(",");
+        String[] replica = parts.length > 1 ? parts[1].split(",") : new String[0];
+
+        map.put("local", Arrays.asList(local));
+        map.put("replica", Arrays.asList(replica));
+        return map;
+    }
+
+    private Map<String, List<String>> parseFileLists(String json) {
+        Map<String, List<String>> map = new HashMap<>();
+
+        try {
+            json = json.replace("{", "").replace("}", "").replace("\"", "");
+            String[] parts = json.split(",");
+
+            List<String> local = new ArrayList<>();
+            List<String> replica = new ArrayList<>();
+
+            for (String part : parts) {
+                if (part.contains("local")) {
+                    local.add(part.substring(part.indexOf(":") + 1).trim());
+                } else if (part.contains("replica")) {
+                    replica.add(part.substring(part.indexOf(":") + 1).trim());
+                } else {
+                    // If multiple files, handle them here (improvement recommended: use a real JSON parser like Gson)
+                    if (!part.trim().isEmpty()) {
+                        if (map.containsKey("local")) {
+                            local.add(part.trim());
+                        } else {
+                            replica.add(part.trim());
+                        }
+                    }
+                }
+            }
+
+            map.put("local", local);
+            map.put("replica", replica);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return map;
+    }
+
+
+//    @FXML
+//    private TextArea localFilesArea;
+//
+//    @FXML
+//    private TextArea replicaFilesArea;
+
+
+//    private void fetchFilesForNode(String nodeName) {
+//        try {
+//            String namingServerIP = "localhost";  // or your remote host
+//            URL url = new URL("http://" + namingServerIP + ":8080/getFilesForNode?nodeName=" + nodeName);
+//            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+//            con.setRequestMethod("GET");
+//
+//            int responseCode = con.getResponseCode();
+//            if (responseCode == 200) {
+//                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+//                String json = in.lines().collect(Collectors.joining());
+//                in.close();
+//
+//                // Parse JSON
+//                Map<String, List<String>> result = parseFileLists(json);
+//
+//                localFilesArea.setText(String.join("\n", result.getOrDefault("local", List.of())));
+//                replicaFilesArea.setText(String.join("\n", result.getOrDefault("replica", List.of())));
+//
+//            } else {
+//                showAlert("Server error (HTTP " + responseCode + ")");
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            showAlert("Error fetching files: " + e.getMessage());
+//        }
+//    }
+
+
+
+
+
+
+
+    //fetching the node names by hash
+    private String fetchNodeNameByHash(int hash) {
+        try {
+            URL url = new URL("http://localhost:8080/getNodeName?hash=" + hash);
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            int responseCode = con.getResponseCode();
+            if (responseCode == 200) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()))) {
+                    return reader.readLine();
+                }
+            } else {
+                showAlert("Failed to fetch node name (HTTP " + responseCode + ")");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert("Error contacting server for node name.");
+        }
+        return "Unknown";
+    }
 
 
 

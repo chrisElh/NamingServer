@@ -15,6 +15,7 @@ public class Node {
 //
 //    private String pathReplica;
 
+    private int hash;
 
     // IDs of neighboring nodes in the ring
     private int previousID = -1;

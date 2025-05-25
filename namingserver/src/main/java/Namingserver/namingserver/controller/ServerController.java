@@ -26,17 +26,27 @@ public class ServerController {
     // Maps hashed node IDs to IP addresses
     private static TreeMap<Integer, Integer> nodeMap = new TreeMap<>();
 
+
+
     // Maps IP addresses to node names (to reconstruct full Node objects)
     private Map<String, String> ipToName = new HashMap<>();
+
+    private Map<Integer, String> hashToName = new HashMap<>();
+
+
+
 
     // Maps file names to node hashes (ownership)
     private Map<String, Integer> fileToNodeMap = new HashMap<>();
 
     // Stores the actual file names per node
-    private Map<Integer, List<String>> localFiles = new HashMap<>();
+//    private Map<Integer, List<String>> localFiles = new HashMap<>();
 
     // Stores replicated files per node
-    private Map<Integer, List<String>> replicas = new HashMap<>();
+//    private Map<Integer, List<String>> replicas = new HashMap<>();
+    private static final Map<Integer, List<String>> localFiles = new HashMap<>();
+    private static final Map<Integer, List<String>> replicas = new HashMap<>();
+//
 
     // Writes the current state of the node map to a file on disk
     private void saveNodeMapToDisk() {
@@ -189,6 +199,12 @@ public class ServerController {
             String localPath = request.getLocalPath();
             String replicaPath = request.getReplicaPath();
 
+
+            int hash = HashingFunction.hashNodeName(name);
+
+            // Store hash to name mapping
+            hashToName.put(hash, name);
+
             System.out.println("Received REST node creation request: " + name);
 
             NodeApp app = new NodeApp();
@@ -289,6 +305,7 @@ public class ServerController {
     }
 
     // Returns the full node map (hash → port)
+//    @GetMapping("/getAllNodes")
     @GetMapping("/getAllNodes")
     public Map<Integer, Integer> getAllNodes() {
         return nodeMap;
@@ -513,6 +530,20 @@ public class ServerController {
         return ResponseEntity.ok(getNodeMap().size());
     }
 
+    @GetMapping("/getFilesForNode")
+    public ResponseEntity<Map<String, List<String>>> getFilesForNode(@RequestParam String nodeName) {
+        int hash = HashingFunction.hashNodeName(nodeName);
+
+        List<String> localList = localFiles.getOrDefault(hash, new ArrayList<>());
+        List<String> replicaList = replicas.getOrDefault(hash, new ArrayList<>());
+
+        Map<String, List<String>> result = new HashMap<>();
+        result.put("local", localList);
+        result.put("replica", replicaList);
+
+        return ResponseEntity.ok(result);
+    }
+
 
 //
 //    // Placeholder
@@ -542,7 +573,14 @@ public class ServerController {
         return fileToNodeMap;
     }
 
+    public String getNodeNameByHash(int hash) {
+        return hashToName.getOrDefault(hash, "Unknown");
+    }
 
+    @GetMapping("/getNodeName")
+    public String getNodeName(@RequestParam int hash) {
+        return getNodeNameByHash(hash);
+    }
 
 
 

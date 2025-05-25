@@ -18,6 +18,21 @@
                 <Button text="Add Node" onAction="#handleAddNode" />
             </HBox>
 
+            <!-- Node Files Section -->
+            <VBox spacing="10">
+                <Label text="Node Files"/>
+                <HBox spacing="10">
+                    <VBox spacing="5">
+                        <Label text="Local Files"/>
+                        <ListView fx:id="localFileListView" prefHeight="150" prefWidth="200"/>
+                    </VBox>
+                    <VBox spacing="5">
+                        <Label text="Replica Files"/>
+                        <ListView fx:id="replicaFileListView" prefHeight="150" prefWidth="200"/>
+                    </VBox>
+                </HBox>
+            </VBox>
+
             <!-- Fetch Nodes Button -->
             <HBox spacing="10">
                 <Button text="Fetch Nodes" onAction="#handleFetchNodes" />
